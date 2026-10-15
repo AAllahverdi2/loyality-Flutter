@@ -1,0 +1,61 @@
+name: loyallig_flutter
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.4
+
+dependencies:
+  barcode_widget: ^2.0.4
+  device_info_plus: ^13.3.0
+  dio: ^5.11.1
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_secure_storage: ^11.2.0
+  flutter_svg: ^2.3.0
+  google_sign_in: ^7.2.0
+  image_picker: ^1.2.4
+  local_auth: ^3.0.2
+  shared_preferences: ^2.5.5
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/lang/
+    - assets/banner-1.jpg
+    - assets/barkod-vertical.png
+    - assets/barkod.png
+    - assets/logo.png
+    - assets/azera.svg
+    - assets/start.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/LogoApp.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/LogoApp.png"
+  adaptive_icon_foreground_inset: 0
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/LogoApp.png"
+  android_12:
+    image: "assets/LogoApp.png"
+    icon_background_color: "#ffffff"
+    color: "#ffffff"
+  web: false
+
