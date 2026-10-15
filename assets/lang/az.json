@@ -365,5 +365,10 @@
   "pin_code_enter_new_title": "Yeni 4 rəqəmli PIN kod daxil edin",
   "pin_code_enter_new_desc": "Tətbiqə təhlükəsiz giriş üçün PIN təyin edin",
   "pin_code_confirm_title": "PIN kodu təsdiqləyin",
-  "pin_code_confirm_desc": "Daxil etdiyiniz PIN kodu təkrar yığın"
+  "pin_code_confirm_desc": "Daxil etdiyiniz PIN kodu təkrar yığın",
+  "pin_code_enter_title": "PIN kodu daxil edin",
+  "pin_code_enter_desc": "Davam etmək üçün 4 rəqəmli PIN kodunuzu daxil edin",
+  "pin_code_invalid": "Daxil edilən PIN kod yanlışdır",
+  "pin_code_use_password": "Şifrə ilə daxil ol",
+  "pin_code_verifying": "Yoxlanılır..."
 }

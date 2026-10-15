@@ -64,10 +64,11 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     final hasSession = await TokenStorage.hasValidSession();
     if (!hasSession) return;
 
+    final hasPin = await TokenStorage.hasPinCode();
     final isEnabled = await BiometricService.instance.isBiometricEnabled();
     final canUse = await BiometricService.instance.canUseBiometrics();
 
-    if (isEnabled && canUse) {
+    if (hasPin || (isEnabled && canUse)) {
       _isLockScreenShowing = true;
       navigatorKey.currentState
           ?.push(

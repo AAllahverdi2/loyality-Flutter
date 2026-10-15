@@ -26,6 +26,8 @@ class ApiEndpoints {
   static const String updateProfile = '/api/Users/myProfile/update';
   static const String myBarcode = '/api/Users/myBarcode';
   static const String userProfile = '/api/Users/myProfile';
+  static const String setMyPinCode = '/api/Users/myPinCode/set';
+  static const String verifyMyPinCode = '/api/Users/myPinCode/verify';
   static const String discounts = '/discounts';
   static const String partners = '/partners';
   static const String partnersGetAll = '/api/Partners/getAll';

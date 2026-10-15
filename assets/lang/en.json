@@ -365,5 +365,10 @@
   "pin_code_enter_new_title": "Enter a new 4-digit PIN code",
   "pin_code_enter_new_desc": "Set a PIN code for secure access to the app",
   "pin_code_confirm_title": "Confirm PIN code",
-  "pin_code_confirm_desc": "Re-enter the PIN code you entered"
+  "pin_code_confirm_desc": "Re-enter the PIN code you entered",
+  "pin_code_enter_title": "Enter PIN code",
+  "pin_code_enter_desc": "Enter your 4-digit PIN code to continue",
+  "pin_code_invalid": "The entered PIN code is incorrect",
+  "pin_code_use_password": "Login with password",
+  "pin_code_verifying": "Verifying..."
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
+import 'package:loyallig_flutter/core/services/pin_code_service.dart';
 
 class PinCodeSettingsScreen extends StatefulWidget {
   final bool showHeader;
@@ -75,25 +76,40 @@ class _PinCodeSettingsScreenState extends State<PinCodeSettingsScreen> {
       });
     } else if (_mode == 'confirm_new') {
       if (_currentInput == _firstPin) {
-        // PIN kodlar uyğundur, yaddaşa yazırıq
-        await TokenStorage.setPinCode(_firstPin);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(tr('pin_code_success_set')),
-            backgroundColor: const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        if (widget.showHeader) {
-          Navigator.of(context).pop(true);
-        } else {
+        setState(() => _loading = true);
+        try {
+          await PinCodeService.instance.setPinCode(
+            pinCode: _firstPin,
+            confirmPinCode: _currentInput,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(tr('pin_code_success_set')),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          if (widget.showHeader) {
+            Navigator.of(context).pop(true);
+          } else {
+            setState(() {
+              _hasExistingPin = true;
+              _mode = 'view';
+              _currentInput = '';
+              _firstPin = '';
+              _errorMessage = null;
+              _loading = false;
+            });
+          }
+        } catch (e) {
+          if (!mounted) return;
           setState(() {
-            _hasExistingPin = true;
-            _mode = 'view';
+            _loading = false;
+            _errorMessage = e.toString().replaceFirst('Exception: ', '');
             _currentInput = '';
             _firstPin = '';
-            _errorMessage = null;
+            _mode = 'enter_new';
           });
         }
       } else {

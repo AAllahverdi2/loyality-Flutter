@@ -37,21 +37,22 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       // İstifadəçinin aktiv sessiyası var
+      final hasPin = await TokenStorage.hasPinCode();
       final biometricService = BiometricService.instance;
       final isBiometricEnabled = await biometricService.isBiometricEnabled();
       final canUseBiometrics = await biometricService.canUseBiometrics();
 
       if (!mounted) return;
 
-      if (isBiometricEnabled && canUseBiometrics) {
-        // Biometrik kilid ekranına yönləndiririk
+      if (hasPin || (isBiometricEnabled && canUseBiometrics)) {
+        // PIN və ya Biometrik kilid ekranına yönləndiririk
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
             builder: (_) => const BiometricLockScreen(),
           ),
         );
       } else {
-        // Biometrika aktiv deyil, birbaşa ana ekrana keçid edirik
+        // Kilid aktiv deyil, birbaşa ana ekrana keçid edirik
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
             builder: (_) => const MainScreen(),

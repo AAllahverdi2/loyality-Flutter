@@ -365,5 +365,10 @@
   "pin_code_enter_new_title": "Введите новый 4-значный PIN-код",
   "pin_code_enter_new_desc": "Установите PIN-код для безопасного входа в приложение",
   "pin_code_confirm_title": "Подтвердите PIN-код",
-  "pin_code_confirm_desc": "Повторите введенный PIN-код"
+  "pin_code_confirm_desc": "Повторите введенный PIN-код",
+  "pin_code_enter_title": "Введите PIN-код",
+  "pin_code_enter_desc": "Введите 4-значный PIN-код для продолжения",
+  "pin_code_invalid": "Введен неверный PIN-код",
+  "pin_code_use_password": "Войти с паролем",
+  "pin_code_verifying": "Проверка..."
 }
