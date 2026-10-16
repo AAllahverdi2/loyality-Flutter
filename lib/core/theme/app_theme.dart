@@ -1,11 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 
 abstract final class AppTheme {
   static final ValueNotifier<ThemeMode> themeModeNotifier =
       ValueNotifier<ThemeMode>(ThemeMode.system);
 
-  static void setThemeMode(String mode) {
+  static const String _themePrefKey = 'app_theme_mode';
+
+  static Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedMode = prefs.getString(_themePrefKey);
+      if (savedMode != null) {
+        setThemeMode(savedMode, save: false);
+      }
+    } catch (_) {}
+  }
+
+  static void setThemeMode(String mode, {bool save = true}) {
     switch (mode) {
       case 'light':
         themeModeNotifier.value = ThemeMode.light;
@@ -16,6 +30,12 @@ abstract final class AppTheme {
       default:
         themeModeNotifier.value = ThemeMode.system;
         break;
+    }
+
+    if (save) {
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString(_themePrefKey, mode);
+      }).catchError((_) {});
     }
   }
 
@@ -28,6 +48,19 @@ abstract final class AppTheme {
       default:
         return 'system';
     }
+  }
+
+  static SystemUiOverlayStyle getOverlayStyle(bool isDark) {
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor:
+          isDark ? const Color(0xFF141414) : Colors.white,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+    );
   }
 
   static ThemeData get light => _buildTheme(Brightness.light);
@@ -49,6 +82,14 @@ abstract final class AppTheme {
         primary: AppColors.base,
         surface: background,
         error: AppColors.error,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: foreground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: getOverlayStyle(isDark),
       ),
       fontFamily: 'Roboto',
       textTheme: ThemeData(brightness: brightness).textTheme

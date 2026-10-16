@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:loyallig_flutter/features/auth/widgets/biometric_prompt_sheet.dart';
 import 'package:loyallig_flutter/features/favorites/favorites_screen.dart';
@@ -79,44 +81,47 @@ class _MainScreenState extends State<MainScreen> {
     final backgroundColor =
         isDark ? const Color(0xFF141414) : const Color(0xFFF9FAFB);
 
-    return ValueListenableBuilder<String>(
-      valueListenable: AppLocalizations.languageNotifier,
-      builder: (context, currentLang, _) {
-        return Scaffold(
-          backgroundColor: backgroundColor,
-          body: IndexedStack(
-            index: _currentIndex,
-            children: [
-              _loadedTabs.contains(0)
-                  ? HomeScreen(
-                      key: ValueKey('home_$currentLang'),
-                      onNavigateToTab: _onTabTapped,
-                    )
-                  : const SizedBox.shrink(),
-              _loadedTabs.contains(1)
-                  ? HistoryScreen(
-                      key: ValueKey('history_$currentLang'),
-                    )
-                  : const SizedBox.shrink(),
-              _loadedTabs.contains(2)
-                  ? FavoritesScreen(
-                      key: ValueKey('favorites_$currentLang'),
-                      isActive: _currentIndex == 2,
-                    )
-                  : const SizedBox.shrink(),
-              _loadedTabs.contains(3)
-                  ? ProfileScreen(
-                      key: ValueKey('profile_$currentLang'),
-                    )
-                  : const SizedBox.shrink(),
-            ],
-          ),
-          bottomNavigationBar: AppBottomNav(
-            currentIndex: _currentIndex,
-            onTap: _onTabTapped,
-          ),
-        );
-      },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppTheme.getOverlayStyle(isDark),
+      child: ValueListenableBuilder<String>(
+        valueListenable: AppLocalizations.languageNotifier,
+        builder: (context, currentLang, _) {
+          return Scaffold(
+            backgroundColor: backgroundColor,
+            body: IndexedStack(
+              index: _currentIndex,
+              children: [
+                _loadedTabs.contains(0)
+                    ? HomeScreen(
+                        key: ValueKey('home_$currentLang'),
+                        onNavigateToTab: _onTabTapped,
+                      )
+                    : const SizedBox.shrink(),
+                _loadedTabs.contains(1)
+                    ? HistoryScreen(
+                        key: ValueKey('history_$currentLang'),
+                      )
+                    : const SizedBox.shrink(),
+                _loadedTabs.contains(2)
+                    ? FavoritesScreen(
+                        key: ValueKey('favorites_$currentLang'),
+                        isActive: _currentIndex == 2,
+                      )
+                    : const SizedBox.shrink(),
+                _loadedTabs.contains(3)
+                    ? ProfileScreen(
+                        key: ValueKey('profile_$currentLang'),
+                      )
+                    : const SizedBox.shrink(),
+              ],
+            ),
+            bottomNavigationBar: AppBottomNav(
+              currentIndex: _currentIndex,
+              onTap: _onTabTapped,
+            ),
+          );
+        },
+      ),
     );
   }
 }
