@@ -20,7 +20,8 @@ class AuthService {
   final ApiClient _client = ApiClient.instance;
 
   // Köməkçi: Cavabdan token və refreshToken-i çıxarıb yaddaşa yazır
-  void _extractAndSaveTokens(dynamic responseData) {
+  bool _extractAndSaveTokens(dynamic responseData) {
+    bool hasPin = false;
     if (responseData is Map) {
       final result = responseData['result'];
       String? token;
@@ -32,6 +33,10 @@ class AuthService {
                 result['jwtToken'])
             ?.toString();
         refreshToken = result['refreshToken']?.toString();
+        if (result.containsKey('hasPinCode')) {
+          hasPin = result['hasPinCode'] == true ||
+              result['hasPinCode']?.toString().toLowerCase() == 'true';
+        }
       }
 
       token ??= (responseData['token'] ??
@@ -39,15 +44,22 @@ class AuthService {
               responseData['jwtToken'])
           ?.toString();
       refreshToken ??= responseData['refreshToken']?.toString();
+      if (responseData.containsKey('hasPinCode')) {
+        hasPin = responseData['hasPinCode'] == true ||
+            responseData['hasPinCode']?.toString().toLowerCase() == 'true';
+      }
+
+      TokenStorage.setHasPinCode(hasPin);
 
       if (token != null && token.isNotEmpty) {
         debugPrint(
-            '🔐 [TOKEN YADDAŞA YAZILDI]: ${token.substring(0, token.length > 15 ? 15 : token.length)}...');
+            '🔐 [TOKEN YADDAŞA YAZILDI]: ${token.substring(0, token.length > 15 ? 15 : token.length)}... (hasPinCode: $hasPin)');
         _client.setTokens(accessToken: token, refreshToken: refreshToken);
       } else {
         debugPrint('⚠️ [DİQQƏT]: Cavabda heç bir token tapılmadı! Data: $responseData');
       }
     }
+    return hasPin;
   }
 
   // Giriş (Login) - LoginRequest modeli ilə

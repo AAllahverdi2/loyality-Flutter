@@ -102,7 +102,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
             return MaterialApp(
               navigatorKey: navigatorKey,
               debugShowCheckedModeBanner: false,
-              title: 'Azera Holding',
+              title: 'Azera Loyallıq',
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,
               themeMode: currentMode,

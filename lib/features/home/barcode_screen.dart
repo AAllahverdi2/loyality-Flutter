@@ -1,6 +1,7 @@
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
 class BarcodeScreen extends StatefulWidget {
@@ -59,9 +60,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
     final barcodeHeight = screenSize.height * 0.70;
     final barcodeWidth = (screenSize.width * 0.45).clamp(140.0, 220.0);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
         child: Stack(
           children: [
             // Close Button: top right
@@ -136,6 +138,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

@@ -8,9 +8,11 @@ import 'package:loyallig_flutter/features/auth/login_screen.dart';
 import 'package:loyallig_flutter/features/auth/models/send_register_code_request.dart';
 import 'package:loyallig_flutter/features/auth/otp_verification_screen.dart';
 import 'package:loyallig_flutter/features/auth/services/auth_service.dart';
+import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
 import 'package:loyallig_flutter/features/auth/widgets/social_auth_section.dart';
 import 'package:loyallig_flutter/features/main/main_screen.dart';
+import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -246,11 +248,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() => _googleLoading = false);
 
-      // Uğurla daxil oldu -> MainScreen-ə keçid
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
-        (route) => false,
-      );
+      final hasPin = await TokenStorage.hasPinCode();
+      if (!mounted) return;
+
+      if (hasPin) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(
+            builder: (_) => const PinCodeSettingsScreen(
+              showHeader: false,
+              isMandatorySetup: true,
+            ),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _googleLoading = false);

@@ -11,6 +11,7 @@ class TokenStorage {
   static const _keyBiometricEnabled = 'biometric_auth_enabled';
   static const _keyBiometricPrompted = 'biometric_prompted_after_login';
   static const _keyPinCode = 'user_pin_code';
+  static const _keyHasPinCode = 'user_has_pin_code';
   static const _keyUserFullName = 'user_full_name';
   static const _keyUserFirstName = 'user_first_name';
   static const _keyUserLastName = 'user_last_name';
@@ -200,11 +201,27 @@ class TokenStorage {
 
   /// İstifadəçinin təyin etdiyi 4 rəqəmli PIN kodu saxlayır
   static Future<void> setPinCode(String pin) async {
+    await setHasPinCode(true);
     try {
       await _secureStorage.write(key: _keyPinCode, value: pin);
     } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyPinCode, pin);
+  }
+
+  /// Serverdən gələn PIN kod mövcudluğu statusunu saxlayır
+  static Future<void> setHasPinCode(bool hasPin) async {
+    try {
+      await _secureStorage.write(
+        key: _keyHasPinCode,
+        value: hasPin ? 'true' : 'false',
+      );
+    } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyHasPinCode, hasPin);
+    if (!hasPin) {
+      await removePinCode();
+    }
   }
 
   /// Yaddaşdakı PIN kodu oxuyur
@@ -219,6 +236,16 @@ class TokenStorage {
 
   /// PIN kodun təyin edilib-edilmədiyini yoxlayır
   static Future<bool> hasPinCode() async {
+    try {
+      final val = await _secureStorage.read(key: _keyHasPinCode);
+      if (val != null) {
+        return val == 'true';
+      }
+    } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(_keyHasPinCode)) {
+      return prefs.getBool(_keyHasPinCode) ?? false;
+    }
     final pin = await getPinCode();
     return pin != null && pin.trim().isNotEmpty;
   }
@@ -241,6 +268,7 @@ class TokenStorage {
       await _secureStorage.delete(key: _keyBiometricEnabled);
       await _secureStorage.delete(key: _keyBiometricPrompted);
       await _secureStorage.delete(key: _keyPinCode);
+      await _secureStorage.delete(key: _keyHasPinCode);
     } catch (e) {
       debugPrint('⚠️ [TokenStorage] Clear secure storage error: $e');
     }
@@ -253,6 +281,7 @@ class TokenStorage {
       await prefs.remove(_keyBiometricEnabled);
       await prefs.remove(_keyBiometricPrompted);
       await prefs.remove(_keyPinCode);
+      await prefs.remove(_keyHasPinCode);
       await prefs.remove(_keyUserFullName);
       await prefs.remove(_keyUserFirstName);
       await prefs.remove(_keyUserLastName);

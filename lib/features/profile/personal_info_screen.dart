@@ -9,6 +9,7 @@ import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
 import 'package:loyallig_flutter/core/widgets/custom_input.dart';
 import 'package:loyallig_flutter/core/widgets/app_date_picker_dialog.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
 import 'package:loyallig_flutter/features/profile/models/update_profile_request.dart';
 import 'package:loyallig_flutter/features/profile/models/user_profile.dart';
@@ -531,9 +532,10 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     final secondaryTextColor =
         isDark ? const Color(0xFFA1A1AA) : const Color(0xFF6B7280);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
         child: Column(
           children: [
             // Header
@@ -782,7 +784,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildAvatarImage(bool isDark) {

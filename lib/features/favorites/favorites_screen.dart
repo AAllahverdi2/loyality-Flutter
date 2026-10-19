@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/features/favorites/partner_detail_screen.dart';
 import 'package:loyallig_flutter/features/favorites/widgets/favorite_card.dart';
 import 'package:loyallig_flutter/features/favorites/widgets/favorites_header.dart';
@@ -240,7 +241,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 onFavoriteToggle: () => _removeFavorite(partner),
                 onTap: () async {
                   final result = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute<bool>(
+                    SmoothPageRoute<bool>(
                       builder: (_) => PartnerDetailScreen(
                         id: partner.id,
                         initialPartner: partner,

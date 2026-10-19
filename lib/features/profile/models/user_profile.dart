@@ -16,6 +16,7 @@ class UserProfile {
   final String? genderName;
   final String? avatarFileId;
   final String? avatarFileName;
+  final bool hasPinCode;
 
   const UserProfile({
     this.id,
@@ -33,6 +34,7 @@ class UserProfile {
     this.genderName,
     this.avatarFileId,
     this.avatarFileName,
+    this.hasPinCode = false,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,8 @@ class UserProfile {
       genderName: json['genderName'] as String?,
       avatarFileId: json['avatarFileId'] as String?,
       avatarFileName: json['avatarFileName'] as String?,
+      hasPinCode: json['hasPinCode'] == true ||
+          json['hasPinCode']?.toString().toLowerCase() == 'true',
     );
   }
 
@@ -74,6 +78,7 @@ class UserProfile {
       'genderName': genderName,
       'avatarFileId': avatarFileId,
       'avatarFileName': avatarFileName,
+      'hasPinCode': hasPinCode,
     };
   }
 

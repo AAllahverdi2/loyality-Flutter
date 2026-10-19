@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/profile/biometric_settings_screen.dart';
 import 'package:loyallig_flutter/features/profile/change_password_screen.dart';
 import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
@@ -15,7 +17,7 @@ class SecurityScreen extends StatelessWidget {
 
   void _navigateToBiometric(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      SmoothPageRoute<void>(
         builder: (_) => const BiometricSettingsScreen(showHeader: true),
       ),
     );
@@ -23,7 +25,7 @@ class SecurityScreen extends StatelessWidget {
 
   void _navigateToChangePassword(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      SmoothPageRoute<void>(
         builder: (_) => const ChangePasswordScreen(showHeader: true),
       ),
     );
@@ -31,7 +33,7 @@ class SecurityScreen extends StatelessWidget {
 
   void _navigateToPinCode(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      SmoothPageRoute<void>(
         builder: (_) => const PinCodeSettingsScreen(showHeader: true),
       ),
     );
@@ -137,9 +139,10 @@ class SecurityScreen extends StatelessWidget {
     final borderColor =
         isDark ? const Color(0xFF27272A) : const Color(0xFFE5E7EB);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
         child: Column(
           children: [
             // Top Bar
@@ -293,6 +296,7 @@ class SecurityScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

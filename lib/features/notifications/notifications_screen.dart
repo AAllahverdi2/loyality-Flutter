@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/notifications/models/notification_item.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -60,8 +61,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -168,6 +170,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

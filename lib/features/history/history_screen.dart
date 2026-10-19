@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/features/history/history_detail_screen.dart';
 import 'package:loyallig_flutter/features/history/models/user_transaction.dart';
 import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
@@ -165,7 +166,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      SmoothPageRoute<void>(
         builder: (_) => HistoryDetailScreen(
           id: id,
           transaction: transaction,

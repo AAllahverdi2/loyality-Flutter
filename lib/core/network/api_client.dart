@@ -281,6 +281,15 @@ class ApiClient {
             accessToken: newToken,
             refreshToken: newRefreshToken ?? _refreshToken,
           );
+          if (result != null && result is Map && result.containsKey('hasPinCode')) {
+            final hasPin = result['hasPinCode'] == true ||
+                result['hasPinCode']?.toString().toLowerCase() == 'true';
+            TokenStorage.setHasPinCode(hasPin);
+          } else if (response.data is Map && response.data.containsKey('hasPinCode')) {
+            final hasPin = response.data['hasPinCode'] == true ||
+                response.data['hasPinCode']?.toString().toLowerCase() == 'true';
+            TokenStorage.setHasPinCode(hasPin);
+          }
           debugPrint('✅ [TOKEN UĞURLA YENİLƏNDİ!]');
           _refreshCompleter?.complete(true);
           return true;

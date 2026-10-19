@@ -7,9 +7,11 @@ import 'package:loyallig_flutter/core/widgets/custom_input.dart';
 import 'package:loyallig_flutter/features/auth/forgot_password_screen.dart';
 import 'package:loyallig_flutter/features/auth/register_screen.dart';
 import 'package:loyallig_flutter/features/auth/services/auth_service.dart';
+import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
 import 'package:loyallig_flutter/features/auth/widgets/social_auth_section.dart';
 import 'package:loyallig_flutter/features/main/main_screen.dart';
+import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -118,10 +120,25 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
-        (route) => false,
-      );
+      final hasPin = await TokenStorage.hasPinCode();
+      if (!mounted) return;
+
+      if (hasPin) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(
+            builder: (_) => const PinCodeSettingsScreen(
+              showHeader: false,
+              isMandatorySetup: true,
+            ),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -167,11 +184,25 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() => _googleLoading = false);
 
-      // Uğurla daxil oldu -> MainScreen-ə yönləndiririk
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
-        (route) => false,
-      );
+      final hasPin = await TokenStorage.hasPinCode();
+      if (!mounted) return;
+
+      if (hasPin) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(
+            builder: (_) => const PinCodeSettingsScreen(
+              showHeader: false,
+              isMandatorySetup: true,
+            ),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _googleLoading = false);

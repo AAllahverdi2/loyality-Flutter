@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/services/biometric_service.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 
 class BiometricSettingsScreen extends StatefulWidget {
   final bool showHeader;
@@ -337,54 +338,57 @@ class _BiometricSettingsScreenState extends State<BiometricSettingsScreen> {
       return mainBody;
     }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF171717) : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF303030)
-                              : const Color(0xFFE5E7EB),
+    return SwipeBackWrapper(
+      enabled: widget.showHeader,
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF171717) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF303030)
+                                : const Color(0xFFE5E7EB),
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        Icons.chevron_left,
-                        color: textColor,
-                        size: 26,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        displayName,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                        child: Icon(
+                          Icons.chevron_left,
                           color: textColor,
+                          size: 26,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 44),
-                ],
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 44),
+                  ],
+                ),
               ),
-            ),
-            Expanded(child: mainBody),
-          ],
+              Expanded(child: mainBody),
+            ],
+          ),
         ),
       ),
     );

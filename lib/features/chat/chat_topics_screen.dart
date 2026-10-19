@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/skeleton.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/chat/chat_screen.dart';
 import 'package:loyallig_flutter/features/chat/models/support_topic.dart';
 import 'package:loyallig_flutter/features/chat/services/support_topics_service.dart';
@@ -76,7 +78,7 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
 
   void _onTopicSelected(SupportTopic topic) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      SmoothPageRoute<void>(
         builder: (_) => ChatScreen(topic: topic),
       ),
     );
@@ -96,9 +98,10 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.black.withValues(alpha: 0.06);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -268,6 +271,7 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

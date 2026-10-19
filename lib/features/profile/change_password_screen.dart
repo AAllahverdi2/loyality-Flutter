@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/widgets/custom_input.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/auth/models/change_password_request.dart';
 import 'package:loyallig_flutter/features/auth/services/auth_service.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
@@ -305,54 +306,57 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return mainBody;
     }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF171717) : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF303030)
-                              : const Color(0xFFE5E7EB),
+    return SwipeBackWrapper(
+      enabled: widget.showHeader,
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF171717) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF303030)
+                                : const Color(0xFFE5E7EB),
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        Icons.chevron_left,
-                        color: isDark ? Colors.white : Colors.black,
-                        size: 26,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        tr('security_change_title'),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
+                        child: Icon(
+                          Icons.chevron_left,
+                          color: isDark ? Colors.white : Colors.black,
+                          size: 26,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 44),
-                ],
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          tr('security_change_title'),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 44),
+                  ],
+                ),
               ),
-            ),
-            Expanded(child: mainBody),
-          ],
+              Expanded(child: mainBody),
+            ],
+          ),
         ),
       ),
     );

@@ -41,6 +41,7 @@ class ProfileService {
               lastName: profile.lastName,
               fullName: profile.fullName,
             );
+            await TokenStorage.setHasPinCode(profile.hasPinCode);
             return profile;
           }
         }

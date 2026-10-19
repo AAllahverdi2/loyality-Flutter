@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
-import 'package:loyallig_flutter/core/services/biometric_service.dart';
 import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/features/auth/biometric_lock_screen.dart';
 import 'package:loyallig_flutter/features/auth/login_screen.dart';
 import 'package:loyallig_flutter/features/auth/register_screen.dart';
 import 'package:loyallig_flutter/features/auth/widgets/azera_logo.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
-import 'package:loyallig_flutter/features/main/main_screen.dart';
+import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
+import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -37,25 +37,33 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       // İstifadəçinin aktiv sessiyası var
-      final hasPin = await TokenStorage.hasPinCode();
-      final biometricService = BiometricService.instance;
-      final isBiometricEnabled = await biometricService.isBiometricEnabled();
-      final canUseBiometrics = await biometricService.canUseBiometrics();
+      bool hasPin = await TokenStorage.hasPinCode();
+      try {
+        final profile = await ProfileService().getMyProfile(forceRefresh: true);
+        if (profile != null) {
+          hasPin = profile.hasPinCode;
+        }
+      } catch (e) {
+        debugPrint('Splash profil yoxlanışı: $e');
+      }
 
       if (!mounted) return;
 
-      if (hasPin || (isBiometricEnabled && canUseBiometrics)) {
-        // PIN və ya Biometrik kilid ekranına yönləndiririk
+      if (!hasPin) {
+        // PIN kodu yoxdursa -> Məcburi PIN təyin etmə səhifəsinə yönləndiririk
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => const BiometricLockScreen(),
+            builder: (_) => const PinCodeSettingsScreen(
+              showHeader: false,
+              isMandatorySetup: true,
+            ),
           ),
         );
       } else {
-        // Kilid aktiv deyil, birbaşa ana ekrana keçid edirik
+        // PIN kodu varsa -> PIN daxil etmə və ya Biometrik kilid ekranına yönləndiririk
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => const MainScreen(),
+            builder: (_) => const BiometricLockScreen(),
           ),
         );
       }

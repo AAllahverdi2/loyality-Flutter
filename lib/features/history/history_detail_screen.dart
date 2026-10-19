@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/chat/chat_topics_screen.dart';
 import 'package:loyallig_flutter/features/history/models/user_transaction.dart';
 import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
@@ -270,9 +271,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final statusIcon = _getStatusIcon(statusDisplay);
     final categoryIcon = _getCategoryIcon(categoryDisplay);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -1134,7 +1136,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildAvatarFallback(

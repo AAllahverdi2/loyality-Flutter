@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/app_bottom_nav.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/discounts/models/partner_offer.dart';
 import 'package:loyallig_flutter/features/discounts/services/discounts_service.dart';
 import 'package:loyallig_flutter/features/discounts/widgets/discounts_filter_bottom_sheet.dart';
@@ -240,89 +242,79 @@ class _DiscountsScreenState extends State<DiscountsScreen> {
     final secondaryTextColor =
         isDark ? const Color(0xFFA1A1AA) : const Color(0xFF6B7280);
 
-    if (_loading) {
-      return Scaffold(
-        backgroundColor: backgroundColor,
-        body: const SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: FavoritesSkeleton(),
-          ),
-        ),
-        bottomNavigationBar: AppBottomNav(
-          currentIndex: 0,
-          onTap: (index) => MainScreen.navigateToTab(context, index),
-        ),
-      );
-    }
-
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
-          onRefresh: () => _loadOffers(showLoading: false),
-          color: AppColors.base,
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(
-              left: 20,
-              right: 20,
-              bottom: 24,
-            ),
-            itemCount: 1 +
-                (_errorMessage != null
-                    ? 1
-                    : (_offers.isEmpty ? 1 : _offers.length)),
-            itemBuilder: (context, index) {
-              // 0: Header with search input & filter button
-              if (index == 0) {
-                return FavoritesHeader(
-                  title: tr('discounts_title'),
-                  showBackButton: true,
-                  searchHint: tr('discounts_search_placeholder'),
-                  searchController: _searchController,
-                  showFilterButton: true,
-                  hasActiveFilters: _hasActiveFilters,
-                  onFilterTap: _openFilterSheet,
-                  onSearchChanged: _onSearchChanged,
-                );
-              }
+        child: _loading
+            ? const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
+                child: FavoritesSkeleton(),
+              )
+            : RefreshIndicator(
+                onRefresh: () => _loadOffers(showLoading: false),
+                color: AppColors.base,
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    bottom: 24,
+                  ),
+                  itemCount: 1 +
+                      (_errorMessage != null
+                          ? 1
+                          : (_offers.isEmpty ? 1 : _offers.length)),
+                  itemBuilder: (context, index) {
+                    // 0: Header with search input & filter button
+                    if (index == 0) {
+                      return FavoritesHeader(
+                        title: tr('discounts_title'),
+                        showBackButton: true,
+                        searchHint: tr('discounts_search_placeholder'),
+                        searchController: _searchController,
+                        showFilterButton: true,
+                        hasActiveFilters: _hasActiveFilters,
+                        onFilterTap: _openFilterSheet,
+                        onSearchChanged: _onSearchChanged,
+                      );
+                    }
 
-              final contentIndex = index - 1;
+                    final contentIndex = index - 1;
 
-              if (_errorMessage != null) {
-                return _buildErrorState(isDark, textColor, secondaryTextColor);
-              }
+                    if (_errorMessage != null) {
+                      return _buildErrorState(isDark, textColor, secondaryTextColor);
+                    }
 
-              if (_offers.isEmpty) {
-                return _buildEmptyState(isDark, textColor, secondaryTextColor);
-              }
+                    if (_offers.isEmpty) {
+                      return _buildEmptyState(isDark, textColor, secondaryTextColor);
+                    }
 
-              final offer = _offers[contentIndex];
-              return FavoriteCard(
-                offer: offer,
-                onTap: () {
-                  final targetId = (offer.partnerId != null &&
-                          offer.partnerId!.trim().isNotEmpty)
-                      ? offer.partnerId!.trim()
-                      : offer.id;
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => PartnerDetailScreen(id: targetId),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
+                    final offer = _offers[contentIndex];
+                    return FavoriteCard(
+                      offer: offer,
+                      onTap: () {
+                        final targetId = (offer.partnerId != null &&
+                                offer.partnerId!.trim().isNotEmpty)
+                            ? offer.partnerId!.trim()
+                            : offer.id;
+                        Navigator.of(context).push(
+                          SmoothPageRoute<void>(
+                            builder: (_) => PartnerDetailScreen(id: targetId),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
       ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: 0,
         onTap: (index) => MainScreen.navigateToTab(context, index),
       ),
     );
+
+    return SwipeBackWrapper(child: scaffold);
   }
 }

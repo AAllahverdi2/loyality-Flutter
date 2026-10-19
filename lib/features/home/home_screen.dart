@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/features/chat/chat_topics_screen.dart';
 import 'package:loyallig_flutter/features/discounts/discounts_screen.dart';
 import 'package:loyallig_flutter/features/favorites/partner_detail_screen.dart';
@@ -188,14 +189,14 @@ class _HomeScreenState extends State<HomeScreen> {
             userName: _userName,
             onChatTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(
+                SmoothPageRoute<void>(
                   builder: (_) => const ChatTopicsScreen(),
                 ),
               );
             },
             onNotificationsTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(
+                SmoothPageRoute<void>(
                   builder: (_) => const NotificationsScreen(),
                 ),
               );
@@ -214,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       bonusAmount: _walletBalance?.formattedBalance ?? '0',
                       onPress: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute<void>(
+                          SmoothPageRoute<void>(
                             builder: (_) => BarcodeScreen(barcode: _barcode),
                           ),
                         );
@@ -229,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     MenuGrid(
                       onDiscountsTap: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute<void>(
+                          SmoothPageRoute<void>(
                             builder: (_) => const DiscountsScreen(),
                           ),
                         );
@@ -242,14 +243,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       partners: _partners,
                       onViewAllTap: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute<void>(
+                          SmoothPageRoute<void>(
                             builder: (_) => const PartnersScreen(),
                           ),
                         );
                       },
                       onPartnerTap: (partner) {
                         Navigator.of(context).push(
-                          MaterialPageRoute<void>(
+                          SmoothPageRoute<void>(
                             builder: (_) => PartnerDetailScreen(id: partner.id),
                           ),
                         );

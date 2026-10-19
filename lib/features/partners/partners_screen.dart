@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:loyallig_flutter/core/widgets/skeleton.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/favorites/partner_detail_screen.dart';
 import 'package:loyallig_flutter/features/main/main_screen.dart';
 import 'package:loyallig_flutter/features/partners/models/partner.dart';
@@ -221,7 +223,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
 
     final allCategories = _allCategories;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
         bottom: false,
@@ -432,7 +434,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
                                   onTap: () async {
                                     final updatedFavStatus =
                                         await Navigator.of(context).push<bool>(
-                                      MaterialPageRoute<bool>(
+                                      SmoothPageRoute<bool>(
                                         builder: (_) => PartnerDetailScreen(
                                           id: partner.id,
                                           initialPartner: partner.copyWith(
@@ -495,6 +497,8 @@ class _PartnersScreenState extends State<PartnersScreen> {
         onTap: (index) => MainScreen.navigateToTab(context, index),
       ),
     );
+
+    return SwipeBackWrapper(child: scaffold);
   }
 }
 

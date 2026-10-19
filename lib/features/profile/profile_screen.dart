@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/features/notifications/notifications_screen.dart';
 import 'package:loyallig_flutter/features/profile/widgets/language_bottom_sheet.dart';
@@ -147,7 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 avatarUrl: _profile?.avatarUrl,
                 onEditTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute<void>(
+                    SmoothPageRoute<void>(
                       builder: (_) => PersonalInfoScreen(profile: _profile),
                     ),
                   ).then((_) => _loadProfile());
@@ -163,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: tr('profile_personal_info'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute<void>(
+                        SmoothPageRoute<void>(
                           builder: (_) => PersonalInfoScreen(profile: _profile),
                         ),
                       ).then((_) => _loadProfile());
@@ -174,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: tr('security_title'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute<void>(
+                        SmoothPageRoute<void>(
                           builder: (_) => const SecurityScreen(),
                         ),
                       );
@@ -186,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     showBadge: true,
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute<void>(
+                        SmoothPageRoute<void>(
                           builder: (_) => const NotificationsScreen(),
                         ),
                       );

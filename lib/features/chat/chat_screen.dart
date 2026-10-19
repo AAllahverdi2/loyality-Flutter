@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
+import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/chat/models/support_topic.dart';
 
 class ChatMessage {
@@ -117,9 +118,10 @@ class _ChatScreenState extends State<ChatScreen> {
         isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6);
     final cardBg = isDark ? const Color(0xFF1F2937) : const Color(0xFFF3F4F6);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
+    return SwipeBackWrapper(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -586,6 +588,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }
