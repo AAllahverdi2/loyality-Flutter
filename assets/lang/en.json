@@ -41,6 +41,7 @@
   "save_password": "Save Password",
 
   "home_greeting": "Hello, valued customer",
+  "home_user_greeting": "Hello, {name}",
   "home_welcome": "Welcome to \"Azera\" app",
   "home_balance": "Balance",
   "home_barcode": "Barcode",

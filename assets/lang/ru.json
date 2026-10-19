@@ -41,6 +41,7 @@
   "save_password": "Сохранить пароль",
 
   "home_greeting": "Здравствуйте, уважаемый клиент",
+  "home_user_greeting": "Здравствуйте, {name}",
   "home_welcome": "Добро пожаловать в приложение «Azera»",
   "home_balance": "Баланс",
   "home_barcode": "Штрих-код",

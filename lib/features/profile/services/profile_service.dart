@@ -13,8 +13,15 @@ import 'package:loyallig_flutter/features/profile/models/user_profile.dart';
 class ProfileService {
   final ApiClient _client = ApiClient.instance;
 
+  static UserProfile? cachedProfile;
+  static String? cachedBarcode;
+
   // İstifadəçinin şəxsi profil məlumatlarını gətirmək
-  Future<UserProfile?> getMyProfile() async {
+  Future<UserProfile?> getMyProfile({bool forceRefresh = false}) async {
+    if (!forceRefresh && cachedProfile != null) {
+      return cachedProfile;
+    }
+
     try {
       final response = await _client.get(ApiEndpoints.myProfile);
       if (response.statusCode == 200 && response.data != null) {
@@ -24,9 +31,16 @@ class ProfileService {
           if (result is Map) {
             final profile =
                 UserProfile.fromJson(Map<String, dynamic>.from(result));
+            cachedProfile = profile;
             if (profile.barcode != null && profile.barcode!.isNotEmpty) {
+              cachedBarcode = profile.barcode;
               TokenStorage.saveBarcode(profile.barcode!);
             }
+            await TokenStorage.saveUserName(
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              fullName: profile.fullName,
+            );
             return profile;
           }
         }
@@ -45,14 +59,13 @@ class ProfileService {
         ApiEndpoints.updateProfile,
         data: request.toJson(),
       );
+      cachedProfile = null;
       return response;
     } catch (e) {
       debugPrint('Profil məlumatı yenilənərkən xəta baş verdi: $e');
       rethrow;
     }
   }
-
-  static String? cachedBarcode;
 
   // İstifadəçinin barkodunu gətirmək (/api/Users/myBarcode)
   Future<String?> getMyBarcode({bool forceRefresh = false}) async {

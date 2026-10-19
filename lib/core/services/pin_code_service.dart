@@ -106,8 +106,38 @@ class PinCodeService {
     return await TokenStorage.hasPinCode();
   }
 
-  /// PIN kodu silmək
-  Future<void> removePinCode() async {
-    await TokenStorage.removePinCode();
+  /// PIN kodu serverdən və yerli yaddaşdan silmək (/api/Users/myPinCode/remove)
+  Future<bool> removePinCode() async {
+    try {
+      final response = await _client.delete(
+        ApiEndpoints.removeMyPinCode,
+      );
+
+      debugPrint('📦 [REMOVE_PIN_CODE CAVABI]: ${response.statusCode} - ${response.data}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        final data = response.data;
+        if (data is Map && data['isSuccess'] == false) {
+          final msg = data['errorMessage']?.toString() ?? 'PIN kod silinə bilmədi.';
+          throw Exception(msg);
+        }
+        // Uğurlu olduqda yerli yaddaşdan da silirik
+        await TokenStorage.removePinCode();
+        return true;
+      }
+      return false;
+    } on DioException catch (e) {
+      debugPrint('❌ [REMOVE_PIN_CODE DIO XƏTASI]: ${e.response?.data}');
+      String errorMsg = 'PIN kod silinərkən xəta baş verdi.';
+      if (e.response?.data != null && e.response?.data is Map) {
+        errorMsg = e.response?.data['errorMessage']?.toString() ??
+            e.response?.data['message']?.toString() ??
+            errorMsg;
+      }
+      throw Exception(errorMsg);
+    } catch (e) {
+      debugPrint('❌ [REMOVE_PIN_CODE XƏTA]: $e');
+      rethrow;
+    }
   }
 }

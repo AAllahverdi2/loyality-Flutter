@@ -11,6 +11,50 @@ class TokenStorage {
   static const _keyBiometricEnabled = 'biometric_auth_enabled';
   static const _keyBiometricPrompted = 'biometric_prompted_after_login';
   static const _keyPinCode = 'user_pin_code';
+  static const _keyUserFullName = 'user_full_name';
+  static const _keyUserFirstName = 'user_first_name';
+  static const _keyUserLastName = 'user_last_name';
+
+  /// İstifadəçinin ad və soyadını yerli yaddaşda saxlayır
+  static Future<void> saveUserName({
+    String? firstName,
+    String? lastName,
+    String? fullName,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (firstName != null && firstName.trim().isNotEmpty) {
+        await prefs.setString(_keyUserFirstName, firstName.trim());
+      }
+      if (lastName != null && lastName.trim().isNotEmpty) {
+        await prefs.setString(_keyUserLastName, lastName.trim());
+      }
+      if (fullName != null && fullName.trim().isNotEmpty) {
+        await prefs.setString(_keyUserFullName, fullName.trim());
+      } else {
+        final combined = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+        if (combined.isNotEmpty) {
+          await prefs.setString(_keyUserFullName, combined);
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// İstifadəçinin ad və soyadını qaytarır
+  static Future<String?> getUserFullName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fullName = prefs.getString(_keyUserFullName);
+      if (fullName != null && fullName.trim().isNotEmpty) {
+        return fullName.trim();
+      }
+      final firstName = prefs.getString(_keyUserFirstName);
+      final lastName = prefs.getString(_keyUserLastName);
+      final combined = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+      if (combined.isNotEmpty) return combined;
+    } catch (_) {}
+    return null;
+  }
 
   /// Tokenləri təhlükəsiz şəkildə (Secure Storage və SharedPreferences) saxlayır
   static Future<void> saveTokens({
@@ -209,6 +253,9 @@ class TokenStorage {
       await prefs.remove(_keyBiometricEnabled);
       await prefs.remove(_keyBiometricPrompted);
       await prefs.remove(_keyPinCode);
+      await prefs.remove(_keyUserFullName);
+      await prefs.remove(_keyUserFirstName);
+      await prefs.remove(_keyUserLastName);
     } catch (_) {}
   }
 }

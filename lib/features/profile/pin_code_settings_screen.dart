@@ -146,23 +146,38 @@ class _PinCodeSettingsScreenState extends State<PinCodeSettingsScreen> {
     );
 
     if (confirm == true) {
-      await TokenStorage.removePinCode();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(tr('pin_code_success_removed')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      if (widget.showHeader) {
-        Navigator.of(context).pop(true);
-      } else {
-        setState(() {
-          _hasExistingPin = false;
-          _mode = 'enter_new';
-          _currentInput = '';
-          _firstPin = '';
-        });
+      setState(() => _loading = true);
+      try {
+        await PinCodeService.instance.removePinCode();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('pin_code_success_removed')),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        if (widget.showHeader) {
+          Navigator.of(context).pop(true);
+        } else {
+          setState(() {
+            _hasExistingPin = false;
+            _mode = 'enter_new';
+            _currentInput = '';
+            _firstPin = '';
+            _loading = false;
+          });
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }

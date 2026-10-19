@@ -16,8 +16,10 @@ import 'package:loyallig_flutter/features/home/widgets/home_skeleton.dart';
 import 'package:loyallig_flutter/features/home/widgets/menu_grid.dart';
 import 'package:loyallig_flutter/features/home/widgets/partners_section.dart';
 import 'package:loyallig_flutter/features/home/widgets/premium_card.dart';
+import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/features/partners/models/partner.dart';
 import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
+import 'package:loyallig_flutter/features/profile/models/user_profile.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -38,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final PartnersService _partnersService = PartnersService();
 
   String? _barcode;
+  String? _userName;
   WalletBalance? _walletBalance;
   List<AppBanner>? _banners;
   List<Partner>? _partners;
@@ -53,7 +56,35 @@ class _HomeScreenState extends State<HomeScreen> {
     if (WalletService.cachedBalance != null) {
       _walletBalance = WalletService.cachedBalance;
     }
+    _initUserName();
     _loadData();
+  }
+
+  void _initUserName() {
+    final cached = ProfileService.cachedProfile;
+    if (cached != null) {
+      final name = _getNameFromProfile(cached);
+      if (name != null && name.isNotEmpty) {
+        _userName = name;
+      }
+    }
+    TokenStorage.getUserFullName().then((name) {
+      if (mounted && name != null && name.isNotEmpty && _userName == null) {
+        setState(() => _userName = name);
+      }
+    });
+  }
+
+  String? _getNameFromProfile(UserProfile? profile) {
+    if (profile == null) return null;
+    final first = profile.firstName?.trim() ?? '';
+    final last = profile.lastName?.trim() ?? '';
+    final combined = '$first $last'.trim();
+    if (combined.isNotEmpty) return combined;
+    if (profile.fullName != null && profile.fullName!.trim().isNotEmpty) {
+      return profile.fullName!.trim();
+    }
+    return null;
   }
 
   Future<void> _loadData({bool force = false}) async {
@@ -65,7 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _barcode != null &&
         _walletBalance != null &&
         _banners != null &&
-        _partners != null) {
+        _partners != null &&
+        _userName != null) {
       if (_loading && mounted) {
         setState(() => _loading = false);
       }
@@ -92,6 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
           debugPrint('Tərəfdaşlar xətası: $e');
           return <Partner>[];
         }),
+        _profileService.getMyProfile(forceRefresh: force).catchError((e) {
+          debugPrint('Profil xətası: $e');
+          return null;
+        }),
       ]);
 
       if (mounted) {
@@ -99,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final wallet = results[1] as WalletBalance?;
         final banners = results[2] as List<AppBanner>?;
         final partners = results[3] as List<Partner>?;
+        final profile = results[4] as UserProfile?;
 
         setState(() {
           if (barcode != null && barcode.isNotEmpty) {
@@ -112,6 +149,10 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           if (partners != null) {
             _partners = List<Partner>.from(partners);
+          }
+          final name = _getNameFromProfile(profile);
+          if (name != null && name.isNotEmpty) {
+            _userName = name;
           }
           _loading = false;
         });
@@ -144,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
           body: Column(
         children: [
           HomeHeader(
+            userName: _userName,
             onChatTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(

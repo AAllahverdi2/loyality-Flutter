@@ -41,6 +41,7 @@
   "save_password": "Şifrəni yadda saxla",
 
   "home_greeting": "Salam, dəyərli müştərimiz",
+  "home_user_greeting": "Salam, {name}",
   "home_welcome": "\"Azera\" tətbiqinə xoş gəlmisiniz",
   "home_balance": "Balans",
   "home_barcode": "Barkod",
