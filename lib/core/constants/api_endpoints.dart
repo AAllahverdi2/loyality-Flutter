@@ -1,5 +1,7 @@
 class ApiEndpoints {
-  static const String baseUrl = 'http://192.168.100.173';
+//   static const String baseUrl = 'http://192.168.100.173';
+  static const String baseUrl = 'https://apiloyalty.azeraholding.az';
+//   static const String baseUrl = 'http://192.168.141.2';
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
@@ -28,6 +30,13 @@ class ApiEndpoints {
   static const String userProfile = '/api/Users/myProfile';
   static const String setMyPinCode = '/api/Users/myPinCode/set';
   static const String verifyMyPinCode = '/api/Users/myPinCode/verify';
+  static const String changeEmailSendCurrentCode =
+      '/api/Users/changeEmail/sendCurrentCode';
+  static const String changeEmailVerifyCurrentCode =
+      '/api/Users/changeEmail/verifyCurrentCode';
+  static const String changeEmailSendNewCode =
+      '/api/Users/changeEmail/sendNewCode';
+  static const String changeEmailConfirm = '/api/Users/changeEmail/confirm';
   static const String discounts = '/discounts';
   static const String partners = '/partners';
   static const String partnersGetAll = '/api/Partners/getAll';
@@ -43,13 +52,15 @@ class ApiEndpoints {
   static const String lookupPartners = '/api/Lookups/partners';
   static const String lookupOfferTypes = '/api/Lookups/offerTypes';
   static const String lookupTransactionTypes = '/api/Lookups/transactionTypes';
-  static const String lookupTransactionStatuses = '/api/Lookups/transactionStatuses';
+  static const String lookupTransactionStatuses =
+      '/api/Lookups/transactionStatuses';
 
   // Partner Offers
   static const String partnerOffersGetAll = '/api/PartnerOffers/getAll';
 
   // Terms and Conditions
-  static const String termsAndConditionsGetAll = '/api/TermsAndConditions/getAll';
+  static const String termsAndConditionsGetAll =
+      '/api/TermsAndConditions/getAll';
 
   // Wallets
   static const String walletMyBalance = '/api/Wallets/myBalance';
@@ -58,8 +69,22 @@ class ApiEndpoints {
   static const String transactionsMy = '/api/Transactions/my';
   static const String transactionsGetById = '/api/Transactions/getById';
 
-  // Support Topics
+  // Support Topics & Chat Endpoints
   static const String supportTopicsActive = '/api/SupportTopics/active';
+  static const String supportConversationsCreate =
+      '/api/SupportConversations/create';
+  static const String supportConversationsMy = '/api/SupportConversations/my';
+  static String supportConversationsMyById(String id) =>
+      '/api/SupportConversations/my/$id';
+  static String supportConversationsMyMessages(String id) =>
+      '/api/SupportConversations/my/$id/messages';
+  static String supportConversationsMyMessagesSeen(String id) =>
+      '/api/SupportConversations/my/$id/messages/seen';
+  static String supportConversationsMyClose(String id) =>
+      '/api/SupportConversations/my/$id/close';
+
+  // SignalR Hub
+  static String get supportChatHub => '$baseUrl/hubs/supportChat';
 
   // File Endpoints
   static const String fileUpload = '/api/File/upload';

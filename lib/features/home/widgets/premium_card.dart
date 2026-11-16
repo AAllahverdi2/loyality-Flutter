@@ -6,14 +6,18 @@ import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 class PremiumCard extends StatelessWidget {
   const PremiumCard({
     this.onPress,
+    this.onRetryBarcode,
     this.bonusAmount = '0',
     this.cardNumber = '',
+    this.hasBarcodeError = false,
     super.key,
   });
 
   final VoidCallback? onPress;
+  final VoidCallback? onRetryBarcode;
   final String bonusAmount;
   final String cardNumber;
+  final bool hasBarcodeError;
 
   // Exact 1-to-1 Ionicons "gift" SVG from @expo/vector-icons
   static const String _giftSvg = '''
@@ -191,33 +195,41 @@ class PremiumCard extends StatelessWidget {
                                     width: double.infinity,
                                   ),
 
-                                  // Real barcode from number
-                                  BarcodeWidget(
-                                    barcode: Barcode.code128(),
-                                    data: cardNumber.replaceAll(' ', ''),
-                                    width: double.infinity,
-                                    height: 64,
-                                    drawText: false,
-                                    color: Colors.black,
-                                    errorBuilder: (context, error) => Image.asset(
-                                      'assets/barkod.png',
-                                      width: double.infinity,
-                                      height: 64,
-                                      fit: BoxFit.fill,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-
-                                  // cardNumberSmall
-                                  Text(
-                                    cardNumber,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                      letterSpacing: 2,
-                                    ),
+                                  // Barkod mövcuddursa real barkod, yoxdursa xəta / yenidən cəhd bloku
+                                  Builder(
+                                    builder: (context) {
+                                      final cleanCode =
+                                          cardNumber.replaceAll(' ', '').trim();
+                                      if (cleanCode.isEmpty || hasBarcodeError) {
+                                        return _buildBarcodeUnavailable();
+                                      }
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          BarcodeWidget(
+                                            barcode: Barcode.code128(),
+                                            data: cleanCode,
+                                            width: double.infinity,
+                                            height: 64,
+                                            drawText: false,
+                                            color: Colors.black,
+                                            errorBuilder: (context, error) =>
+                                                _buildBarcodeUnavailable(),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            cardNumber,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black,
+                                              letterSpacing: 2,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -231,6 +243,76 @@ class PremiumCard extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBarcodeUnavailable() {
+    return SizedBox(
+      height: 82,
+      width: double.infinity,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 18,
+                color: Color(0xFFDC2626),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  tr('home_barcode_error'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4B5563),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (onRetryBarcode != null) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: onRetryBarcode,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC91C1C).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.refresh_rounded,
+                      size: 14,
+                      color: Color(0xFFC91C1C),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      tr('common_retry'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFC91C1C),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

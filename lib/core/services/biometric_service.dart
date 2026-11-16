@@ -33,8 +33,21 @@ class BiometricService {
 
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _isAuthenticating = false;
+  bool isLockSuppressed = false;
 
   bool get isAuthenticating => _isAuthenticating;
+
+  /// Kamera, Qalereya və ya xarici pəncərələr açılarkən PIN/Biometrik kilidin
+  /// arxa plan taymeri tərəfindən açılmasının qarşısını alır
+  Future<T> runWithSuppressedLock<T>(Future<T> Function() action) async {
+    isLockSuppressed = true;
+    try {
+      return await action();
+    } finally {
+      await Future.delayed(const Duration(milliseconds: 600));
+      isLockSuppressed = false;
+    }
+  }
 
   /// Cihazın biometrik sensoru (Face ID / Barmaq izi) dəstəkləyib-dəstəkləmədiyini yoxlayır
   Future<bool> isDeviceSupported() async {

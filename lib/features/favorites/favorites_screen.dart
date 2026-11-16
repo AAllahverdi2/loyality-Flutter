@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/features/favorites/partner_detail_screen.dart';
 import 'package:loyallig_flutter/features/favorites/widgets/favorite_card.dart';
@@ -32,6 +33,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void initState() {
     super.initState();
     PartnersService.favoritesVersionNotifier.addListener(_onFavoritesUpdated);
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
     _loadFavorites();
   }
 
@@ -46,9 +48,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
     PartnersService.favoritesVersionNotifier.removeListener(_onFavoritesUpdated);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted) {
+      _loadFavorites(showLoading: _favorites.isEmpty);
+    }
   }
 
   void _onFavoritesUpdated() {

@@ -259,6 +259,20 @@ class TokenStorage {
     await prefs.remove(_keyPinCode);
   }
 
+  /// Yeni hesabla giriş zamanı əvvəlki istifadəçiyə aid lokal profil/barkod məlumatlarını təmizləyir
+  static Future<void> clearCachedUserProfileData() async {
+    try {
+      await _secureStorage.delete(key: _keyUserBarcode);
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyUserBarcode);
+      await prefs.remove(_keyUserFullName);
+      await prefs.remove(_keyUserFirstName);
+      await prefs.remove(_keyUserLastName);
+    } catch (_) {}
+  }
+
   /// Çıxış zamanı bütün sessiya məlumatlarını və tokenləri silir
   static Future<void> clearTokens() async {
     try {

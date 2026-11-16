@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/features/chat/chat_topics_screen.dart';
+import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
 import 'package:loyallig_flutter/features/discounts/discounts_screen.dart';
 import 'package:loyallig_flutter/features/favorites/partner_detail_screen.dart';
 import 'package:loyallig_flutter/features/notifications/notifications_screen.dart';
@@ -47,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Partner>? _partners;
   bool _loading = true;
   bool _isFetching = false;
+  bool _barcodeError = false;
 
   @override
   void initState() {
@@ -57,8 +60,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (WalletService.cachedBalance != null) {
       _walletBalance = WalletService.cachedBalance;
     }
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
     _initUserName();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
+    super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted) {
+      _loadData(force: true);
+    }
   }
 
   void _initUserName() {
@@ -106,11 +122,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _isFetching = true;
+    bool barcodeSucceeded = false;
     try {
       final lang = AppLocalizations.currentLanguageCode;
       final results = await Future.wait([
-        _profileService.getMyBarcode(forceRefresh: force).catchError((e) {
+        _profileService.getMyBarcode(forceRefresh: true).then((val) {
+          barcodeSucceeded = true;
+          return val;
+        }).catchError((e) {
           debugPrint('Barkod xətası: $e');
+          barcodeSucceeded = false;
           return null;
         }),
         _walletService.getMyBalance(forceRefresh: force).catchError((e) {
@@ -139,8 +160,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final profile = results[4] as UserProfile?;
 
         setState(() {
-          if (barcode != null && barcode.isNotEmpty) {
-            _barcode = barcode;
+          if (barcodeSucceeded && barcode != null && barcode.trim().isNotEmpty) {
+            _barcode = barcode.trim();
+            _barcodeError = false;
+          } else {
+            _barcode = null;
+            _barcodeError = true;
           }
           if (wallet != null) {
             _walletBalance = wallet;
@@ -159,7 +184,13 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _barcode = null;
+          _barcodeError = true;
+          _loading = false;
+        });
+      }
     } finally {
       _isFetching = false;
     }
@@ -185,20 +216,29 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: backgroundColor,
           body: Column(
         children: [
-          HomeHeader(
-            userName: _userName,
-            onChatTap: () {
-              Navigator.of(context).push(
-                SmoothPageRoute<void>(
-                  builder: (_) => const ChatTopicsScreen(),
-                ),
-              );
-            },
-            onNotificationsTap: () {
-              Navigator.of(context).push(
-                SmoothPageRoute<void>(
-                  builder: (_) => const NotificationsScreen(),
-                ),
+          ListenableBuilder(
+            listenable: SupportConversationsStore.instance,
+            builder: (context, _) {
+              return HomeHeader(
+                userName: _userName,
+                hasUnreadChat:
+                    SupportConversationsStore.instance.hasUnreadMessages,
+                unreadChatCount:
+                    SupportConversationsStore.instance.totalUnreadCount,
+                onChatTap: () {
+                  Navigator.of(context).push(
+                    SmoothPageRoute<void>(
+                      builder: (_) => const ChatTopicsScreen(),
+                    ),
+                  );
+                },
+                onNotificationsTap: () {
+                  Navigator.of(context).push(
+                    SmoothPageRoute<void>(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -212,8 +252,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     PremiumCard(
                       cardNumber: _barcode ?? '',
+                      hasBarcodeError: _barcodeError,
                       bonusAmount: _walletBalance?.formattedBalance ?? '0',
+                      onRetryBarcode: () => _loadData(force: true),
                       onPress: () {
+                        if (_barcode == null || _barcode!.trim().isEmpty) {
+                          _loadData(force: true);
+                          return;
+                        }
                         Navigator.of(context).push(
                           SmoothPageRoute<void>(
                             builder: (_) => BarcodeScreen(barcode: _barcode),

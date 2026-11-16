@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
@@ -15,9 +17,27 @@ import 'package:loyallig_flutter/features/auth/models/register_request.dart';
 import 'package:loyallig_flutter/features/auth/models/reset_password_request.dart';
 import 'package:loyallig_flutter/features/auth/models/send_register_code_request.dart';
 import 'package:loyallig_flutter/features/auth/models/verify_reset_code_request.dart';
+import 'package:loyallig_flutter/features/chat/services/support_chat_hub_service.dart';
+import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
+import 'package:loyallig_flutter/features/discounts/services/discounts_service.dart';
+import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
+import 'package:loyallig_flutter/features/history/services/wallet_service.dart';
+import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
+import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
 class AuthService {
   final ApiClient _client = ApiClient.instance;
+
+  /// İstifadəçi dəyişdikdə və ya çıxış etdikdə bütün RAM və lokal istifadəçi keşlərini təmizləyir
+  Future<void> _resetUserCaches() async {
+    ProfileService.clearCache();
+    WalletService.clearCache();
+    PartnersService.clearCache();
+    TransactionService.clearLookupsCache();
+    DiscountsService.clearLookupsCache();
+    SupportConversationsStore.instance.clear();
+    await TokenStorage.clearCachedUserProfileData();
+  }
 
   // Köməkçi: Cavabdan token və refreshToken-i çıxarıb yaddaşa yazır
   bool _extractAndSaveTokens(dynamic responseData) {
@@ -28,24 +48,25 @@ class AuthService {
       String? refreshToken;
 
       if (result is Map) {
-        token = (result['token'] ??
-                result['accessToken'] ??
-                result['jwtToken'])
+        token = (result['token'] ?? result['accessToken'] ?? result['jwtToken'])
             ?.toString();
         refreshToken = result['refreshToken']?.toString();
         if (result.containsKey('hasPinCode')) {
-          hasPin = result['hasPinCode'] == true ||
+          hasPin =
+              result['hasPinCode'] == true ||
               result['hasPinCode']?.toString().toLowerCase() == 'true';
         }
       }
 
-      token ??= (responseData['token'] ??
-              responseData['accessToken'] ??
-              responseData['jwtToken'])
-          ?.toString();
+      token ??=
+          (responseData['token'] ??
+                  responseData['accessToken'] ??
+                  responseData['jwtToken'])
+              ?.toString();
       refreshToken ??= responseData['refreshToken']?.toString();
       if (responseData.containsKey('hasPinCode')) {
-        hasPin = responseData['hasPinCode'] == true ||
+        hasPin =
+            responseData['hasPinCode'] == true ||
             responseData['hasPinCode']?.toString().toLowerCase() == 'true';
       }
 
@@ -53,10 +74,13 @@ class AuthService {
 
       if (token != null && token.isNotEmpty) {
         debugPrint(
-            '🔐 [TOKEN YADDAŞA YAZILDI]: ${token.substring(0, token.length > 15 ? 15 : token.length)}... (hasPinCode: $hasPin)');
+          '🔐 [TOKEN YADDAŞA YAZILDI]: ${token.substring(0, token.length > 15 ? 15 : token.length)}... (hasPinCode: $hasPin)',
+        );
         _client.setTokens(accessToken: token, refreshToken: refreshToken);
       } else {
-        debugPrint('⚠️ [DİQQƏT]: Cavabda heç bir token tapılmadı! Data: $responseData');
+        debugPrint(
+          '⚠️ [DİQQƏT]: Cavabda heç bir token tapılmadı! Data: $responseData',
+        );
       }
     }
     return hasPin;
@@ -70,7 +94,10 @@ class AuthService {
         data: request.toJson(),
       );
 
+      await SupportChatHubService.instance.stop();
+      await _resetUserCaches();
       _extractAndSaveTokens(response.data);
+      unawaited(SupportConversationsStore.instance.initGlobalSession());
       return response;
     } catch (e) {
       rethrow;
@@ -102,7 +129,10 @@ class AuthService {
         data: request.toJson(),
       );
 
+      await SupportChatHubService.instance.stop();
+      await _resetUserCaches();
       _extractAndSaveTokens(response.data);
+      unawaited(SupportConversationsStore.instance.initGlobalSession());
       return response;
     } catch (e) {
       rethrow;
@@ -126,7 +156,8 @@ class AuthService {
     debugPrint('🆔 Device ID   : $deviceId');
     debugPrint('📛 Device Name : $deviceName');
     debugPrint(
-        '🎟️ idToken     : ${idToken.substring(0, idToken.length > 25 ? 25 : idToken.length)}...');
+      '🎟️ idToken     : ${idToken.substring(0, idToken.length > 25 ? 25 : idToken.length)}...',
+    );
     debugPrint('==============================================');
 
     // 3. Backend-ə göndərilir və tokenlər avtomatik yaddaşa yazılır
@@ -179,7 +210,10 @@ class AuthService {
         data: request.toJson(),
       );
 
+      await SupportChatHubService.instance.stop();
+      await _resetUserCaches();
       _extractAndSaveTokens(response.data);
+      unawaited(SupportConversationsStore.instance.initGlobalSession());
       return response;
     } catch (e) {
       rethrow;
@@ -260,8 +294,6 @@ class AuthService {
           _client.refreshToken ?? await TokenStorage.getRefreshToken() ?? '';
 
       debugPrint('🚪 [LOGOUT GÖNDƏRİLİR]');
-      debugPrint('🔄 RefreshToken: $refreshToken');
-
       await _client.post(
         ApiEndpoints.logout,
         data: LogoutRequest(refreshToken: refreshToken).toJson(),
@@ -269,6 +301,8 @@ class AuthService {
     } catch (e) {
       debugPrint('⚠️ [LOGOUT API XƏTASI]: $e');
     } finally {
+      await SupportChatHubService.instance.stop();
+      await _resetUserCaches();
       await GoogleAuthService.signOut();
       _client.clearAuthToken();
       await TokenStorage.clearTokens();

@@ -79,9 +79,67 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     return _controllers.map((c) => c.text.trim()).join();
   }
 
+  void _applyPastedDigits(String rawText) {
+    final digits = rawText.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return;
+
+    if (_errorMessage != null) {
+      setState(() => _errorMessage = null);
+    }
+
+    final count = digits.length > 6 ? 6 : digits.length;
+    for (int i = 0; i < 6; i++) {
+      _controllers[i].text = i < count ? digits[i] : '';
+    }
+
+    if (count >= 6) {
+      _focusNodes[5].unfocus();
+      _handleVerify();
+    } else {
+      _focusNodes[count].requestFocus();
+      _controllers[count].selection = TextSelection.collapsed(
+        offset: _controllers[count].text.length,
+      );
+    }
+  }
+
+  Future<void> _handleClipboardPaste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text == null || text.isEmpty || !mounted) return;
+    _applyPastedDigits(text);
+  }
+
   void _onDigitChanged(int index, String value) {
     if (_errorMessage != null) {
       setState(() => _errorMessage = null);
+    }
+
+    // İstifadəçi bütöv kodu yapışdırdıqda (Paste) və ya xanada artıq rəqəm olduqda
+    if (value.length > 1) {
+      final digits = value.replaceAll(RegExp(r'\D'), '');
+      if (digits.length > 2) {
+        final cleanDigits =
+            digits.length > 6 ? digits.substring(digits.length - 6) : digits;
+        _applyPastedDigits(cleanDigits);
+        return;
+      }
+
+      final lastDigit = digits.isNotEmpty ? digits[digits.length - 1] : '';
+      _controllers[index].text = lastDigit;
+      _controllers[index].selection =
+          TextSelection.collapsed(offset: lastDigit.length);
+      if (lastDigit.isNotEmpty) {
+        if (index < 5) {
+          _focusNodes[index + 1].requestFocus();
+        } else {
+          _focusNodes[index].unfocus();
+          if (_otpCode.length == 6) {
+            _handleVerify();
+          }
+        }
+      }
+      return;
     }
 
     if (value.isNotEmpty) {
@@ -315,65 +373,75 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 36),
 
               // 6 Qutulu OTP Girişi
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(6, (index) {
-                  final hasError = _errorMessage != null;
-                  return SizedBox(
-                    width: 48,
-                    height: 56,
-                    child: KeyboardListener(
-                      focusNode: FocusNode(),
-                      onKeyEvent: (event) => _onKeyDown(index, event),
-                      child: TextField(
-                        controller: _controllers[index],
-                        focusNode: _focusNodes[index],
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        maxLength: 1,
-                        cursorColor: AppColors.base,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: InputDecoration(
-                          counterText: '',
-                          filled: true,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                          fillColor: isDark
-                              ? AppColors.darkInputBackground
-                              : AppColors.inputBackground,
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: hasError
-                                  ? AppColors.error
-                                  : (isDark
-                                      ? AppColors.darkBorder
-                                      : AppColors.border),
-                              width: hasError ? 1.5 : 1,
+              Actions(
+                actions: <Type, Action<Intent>>{
+                  PasteTextIntent: CallbackAction<PasteTextIntent>(
+                    onInvoke: (intent) {
+                      _handleClipboardPaste();
+                      return null;
+                    },
+                  ),
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(6, (index) {
+                    final hasError = _errorMessage != null;
+                    return SizedBox(
+                      width: 48,
+                      height: 56,
+                      child: KeyboardListener(
+                        focusNode: FocusNode(),
+                        onKeyEvent: (event) => _onKeyDown(index, event),
+                        child: TextField(
+                          controller: _controllers[index],
+                          focusNode: _focusNodes[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          cursorColor: AppColors.base,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            isDense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            fillColor: isDark
+                                ? AppColors.darkInputBackground
+                                : AppColors.inputBackground,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: hasError
+                                    ? AppColors.error
+                                    : (isDark
+                                        ? AppColors.darkBorder
+                                        : AppColors.border),
+                                width: hasError ? 1.5 : 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: hasError
+                                    ? AppColors.error
+                                    : AppColors.base,
+                                width: 1.8,
+                              ),
                             ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: hasError
-                                  ? AppColors.error
-                                  : AppColors.base,
-                              width: 1.8,
-                            ),
-                          ),
+                          onChanged: (val) => _onDigitChanged(index, val),
                         ),
-                        onChanged: (val) => _onDigitChanged(index, val),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
               const SizedBox(height: 24),
 

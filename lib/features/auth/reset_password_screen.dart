@@ -121,6 +121,40 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return _codeControllers.map((c) => c.text.trim()).join();
   }
 
+  void _applyPastedDigits(String rawText) {
+    final digits = rawText.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return;
+
+    if (_codeError != null || _errorMessage != null) {
+      setState(() {
+        _codeError = null;
+        _errorMessage = null;
+      });
+    }
+
+    final count = digits.length > 6 ? 6 : digits.length;
+    for (int i = 0; i < 6; i++) {
+      _codeControllers[i].text = i < count ? digits[i] : '';
+    }
+
+    if (count >= 6) {
+      _codeFocusNodes[5].unfocus();
+      _handleVerifyCode();
+    } else {
+      _codeFocusNodes[count].requestFocus();
+      _codeControllers[count].selection = TextSelection.collapsed(
+        offset: _codeControllers[count].text.length,
+      );
+    }
+  }
+
+  Future<void> _handleClipboardPaste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text == null || text.isEmpty || !mounted) return;
+    _applyPastedDigits(text);
+  }
+
   void _onDigitChanged(int index, String value) {
     if (_codeError != null || _errorMessage != null) {
       setState(() {
@@ -132,12 +166,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     // Əgər istifadəçi bütöv kodu yapışdırarsa (Paste) və ya xanada artıq rəqəm varsa
     if (value.length > 1) {
       final digits = value.replaceAll(RegExp(r'\D'), '');
-      if (digits.length >= 6) {
-        for (int i = 0; i < 6; i++) {
-          _codeControllers[i].text = digits[i];
-        }
-        _codeFocusNodes[5].unfocus();
-        _handleVerifyCode();
+      if (digits.length > 2) {
+        final cleanDigits =
+            digits.length > 6 ? digits.substring(digits.length - 6) : digits;
+        _applyPastedDigits(cleanDigits);
         return;
       }
 
@@ -146,8 +178,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _codeControllers[index].text = lastDigit;
       _codeControllers[index].selection =
           TextSelection.collapsed(offset: lastDigit.length);
-      if (lastDigit.isNotEmpty && index < 5) {
-        _codeFocusNodes[index + 1].requestFocus();
+      if (lastDigit.isNotEmpty) {
+        if (index < 5) {
+          _codeFocusNodes[index + 1].requestFocus();
+        } else {
+          _codeFocusNodes[index].unfocus();
+          if (_otpCode.length == 6) {
+            _handleVerifyCode();
+          }
+        }
       }
       return;
     }
@@ -488,62 +527,72 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 const SizedBox(height: 10),
 
                 // 6 Rəqəmli OTP Kod Qutuları
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(6, (index) {
-                    final hasError =
-                        _codeError != null || _errorMessage != null;
-                    return SizedBox(
-                      width: 48,
-                      height: 56,
-                      child: TextField(
-                        controller: _codeControllers[index],
-                        focusNode: _codeFocusNodes[index],
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        cursorColor: AppColors.base,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: InputDecoration(
-                          counterText: '',
-                          filled: true,
-                          isDense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                          fillColor: isDark
-                              ? const Color(0xFF18181B)
-                              : const Color(0xFFF9FAFB),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: hasError
-                                  ? const Color(0xFFEF4444)
-                                  : isDark
-                                      ? const Color(0xFF27272A)
-                                      : const Color(0xFFE5E7EB),
-                              width: hasError ? 1.5 : 1.0,
+                Actions(
+                  actions: <Type, Action<Intent>>{
+                    PasteTextIntent: CallbackAction<PasteTextIntent>(
+                      onInvoke: (intent) {
+                        _handleClipboardPaste();
+                        return null;
+                      },
+                    ),
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(6, (index) {
+                      final hasError =
+                          _codeError != null || _errorMessage != null;
+                      return SizedBox(
+                        width: 48,
+                        height: 56,
+                        child: TextField(
+                          controller: _codeControllers[index],
+                          focusNode: _codeFocusNodes[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          cursorColor: AppColors.base,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            isDense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            fillColor: isDark
+                                ? const Color(0xFF18181B)
+                                : const Color(0xFFF9FAFB),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: hasError
+                                    ? const Color(0xFFEF4444)
+                                    : isDark
+                                        ? const Color(0xFF27272A)
+                                        : const Color(0xFFE5E7EB),
+                                width: hasError ? 1.5 : 1.0,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: hasError
+                                    ? const Color(0xFFEF4444)
+                                    : AppColors.base,
+                                width: 1.5,
+                              ),
                             ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: hasError
-                                  ? const Color(0xFFEF4444)
-                                  : AppColors.base,
-                              width: 1.5,
-                            ),
-                          ),
+                          onChanged: (val) => _onDigitChanged(index, val),
                         ),
-                        onChanged: (val) => _onDigitChanged(index, val),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
 
                 if (_codeError != null)

@@ -4,6 +4,7 @@ import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/profile/biometric_settings_screen.dart';
+import 'package:loyallig_flutter/features/profile/change_email_screen.dart';
 import 'package:loyallig_flutter/features/profile/change_password_screen.dart';
 import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
 
@@ -27,6 +28,14 @@ class SecurityScreen extends StatelessWidget {
     Navigator.of(context).push(
       SmoothPageRoute<void>(
         builder: (_) => const ChangePasswordScreen(showHeader: true),
+      ),
+    );
+  }
+
+  void _navigateToChangeEmail(BuildContext context) {
+    Navigator.of(context).push(
+      SmoothPageRoute<void>(
+        builder: (_) => const ChangeEmailScreen(),
       ),
     );
   }
@@ -275,7 +284,21 @@ class SecurityScreen extends StatelessWidget {
                         secondaryTextColor: secondaryTextColor,
                       ),
 
-                      // Option 3: PIN kod təyin et
+                      // Option 3: E-poçt ünvanını dəyişdir
+                      _buildSecurityOptionCard(
+                        context: context,
+                        icon: Icons.alternate_email_rounded,
+                        title: tr('change_email_title'),
+                        subtitle: tr('change_email_security_subtitle'),
+                        onTap: () => _navigateToChangeEmail(context),
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        borderColor: borderColor,
+                        textColor: textColor,
+                        secondaryTextColor: secondaryTextColor,
+                      ),
+
+                      // Option 4: PIN kod təyin et
                       _buildSecurityOptionCard(
                         context: context,
                         icon: Icons.dialpad_rounded,

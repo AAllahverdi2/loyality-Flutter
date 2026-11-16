@@ -1,11 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/skeleton.dart';
 import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/chat/chat_screen.dart';
+import 'package:loyallig_flutter/features/chat/models/support_conversation.dart';
 import 'package:loyallig_flutter/features/chat/models/support_topic.dart';
+import 'package:loyallig_flutter/features/chat/services/support_chat_hub_service.dart';
+import 'package:loyallig_flutter/features/chat/services/support_chat_service.dart';
+import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
 import 'package:loyallig_flutter/features/chat/services/support_topics_service.dart';
 
 class ChatTopicsScreen extends StatefulWidget {
@@ -17,25 +24,48 @@ class ChatTopicsScreen extends StatefulWidget {
 
 class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
   final SupportTopicsService _service = SupportTopicsService();
+  final SupportConversationsStore _conversationsStore =
+      SupportConversationsStore.instance;
   final TextEditingController _searchController = TextEditingController();
 
   bool _isLoading = true;
   String? _errorMessage;
   List<SupportTopic> _topics = [];
+  List<SupportConversation> _myConversations = [];
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _myConversations = _conversationsStore.conversations;
+    _conversationsStore.addListener(_onConversationsStoreUpdated);
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
+    unawaited(SupportChatHubService.instance.initAndConnect());
     _loadTopics();
     _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
+    _conversationsStore.removeListener(_onConversationsStoreUpdated);
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted) {
+      unawaited(SupportChatHubService.instance.initAndConnect());
+      _loadTopics(silent: _topics.isNotEmpty);
+    }
+  }
+
+  void _onConversationsStoreUpdated() {
+    if (!mounted) return;
+    setState(() {
+      _myConversations = _conversationsStore.conversations;
+    });
   }
 
   void _onSearchChanged() {
@@ -44,25 +74,37 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
     });
   }
 
-  Future<void> _loadTopics() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadTopics({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      final topics = await _service.getActiveTopics();
+      final results = await Future.wait([
+        _service.getActiveTopics(),
+        _conversationsStore
+            .refreshConversations(silent: true)
+            .catchError((_) => _conversationsStore.conversations),
+      ]);
+
       if (!mounted) return;
       setState(() {
-        _topics = topics;
+        _topics = results[0] as List<SupportTopic>;
+        _myConversations = _conversationsStore.conversations;
         _isLoading = false;
+        _errorMessage = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _errorMessage = SupportChatService.extractFriendlyErrorMessage(e);
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -76,12 +118,40 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
     }).toList();
   }
 
+  List<SupportConversation> get _activeConversations {
+    return _myConversations.where((c) => c.isOpen).toList();
+  }
+
   void _onTopicSelected(SupportTopic topic) {
-    Navigator.of(context).push(
-      SmoothPageRoute<void>(
-        builder: (_) => ChatScreen(topic: topic),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          SmoothPageRoute<void>(
+            builder: (_) => ChatScreen(topic: topic),
+          ),
+        )
+        .then((_) => _loadTopics(silent: true));
+  }
+
+  void _onConversationSelected(SupportConversation conv) {
+    // Çata daxil olan kimi lokal state-də unreadMessagesCount dərhal 0 edilir
+    if (conv.unreadMessagesCount > 0) {
+      _conversationsStore.markConversationRead(conv.id);
+    }
+
+    final updatedConv = conv.unreadMessagesCount > 0
+        ? conv.copyWith(unreadMessagesCount: 0)
+        : conv;
+
+    Navigator.of(context)
+        .push(
+          SmoothPageRoute<void>(
+            builder: (_) => ChatScreen(
+              conversationId: updatedConv.id,
+              conversation: updatedConv,
+            ),
+          ),
+        )
+        .then((_) => _loadTopics(silent: true));
   }
 
   @override
@@ -161,9 +231,9 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
                               ),
                             ),
                             const SizedBox(width: 5),
-                            const Text(
-                              'Canlı Dəstək Operatoru Onlayn',
-                              style: TextStyle(
+                            Text(
+                              tr('support_operator_online'),
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
                                 color: Color(0xFF10B981),
@@ -208,6 +278,18 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
                       borderColor: borderColor,
                     ),
 
+                    // Aktiv söhbətlər (əgər varsa)
+                    if (!_isLoading && _activeConversations.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _buildActiveConversationsSection(
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        textColor: textColor,
+                        secondaryTextColor: secondaryTextColor,
+                        borderColor: borderColor,
+                      ),
+                    ],
+
                     const SizedBox(height: 18),
 
                     // Section Title
@@ -215,7 +297,7 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Mövzular',
+                          tr('support_topics_section_title'),
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -224,7 +306,9 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
                         ),
                         if (!_isLoading && _topics.isNotEmpty)
                           Text(
-                            '${_filteredTopics.length} mövzu',
+                            tr('support_topics_count', {
+                              'count': '${_filteredTopics.length}',
+                            }),
                             style: TextStyle(
                               fontSize: 12,
                               color: secondaryTextColor,
@@ -321,7 +405,7 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sizə necə kömək edə bilərik?',
+                  tr('support_hero_title'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -367,6 +451,8 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
         cursorColor: AppColors.base,
         decoration: InputDecoration(
           isDense: true,
+          filled: false,
+          fillColor: Colors.transparent,
           hintText: tr('support_topics_search'),
           hintStyle: TextStyle(
             color: secondaryTextColor,
@@ -394,6 +480,233 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
     );
   }
 
+  String? _formatConversationTime(DateTime? date) {
+    if (date == null) return null;
+    final local = date.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final target = DateTime(local.year, local.month, local.day);
+
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    if (target == today) {
+      return '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+    }
+    if (target == yesterday) {
+      return tr('chat_yesterday');
+    }
+    return '${twoDigits(local.day)}.${twoDigits(local.month)}';
+  }
+
+  Widget _buildUnreadBadge(int unreadMessagesCount) {
+    if (unreadMessagesCount <= 0) {
+      return const SizedBox.shrink();
+    }
+    final badgeText = unreadMessagesCount > 99
+        ? '99+'
+        : '$unreadMessagesCount';
+    final isMultiChar = badgeText.length > 1;
+
+    return Container(
+      constraints: const BoxConstraints(
+        minWidth: 21,
+        minHeight: 21,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMultiChar ? 6 : 0,
+        vertical: 2,
+      ),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        badgeText,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 11,
+          height: 1.1,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveConversationsSection({
+    required bool isDark,
+    required Color cardBg,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color borderColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              tr('support_active_conversations'),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                tr('support_active_count', {
+                  'count': '${_activeConversations.length}',
+                }),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ..._activeConversations.map((conv) {
+          final hasUnread = conv.unreadMessagesCount > 0;
+          final timeLabel = _formatConversationTime(
+            conv.lastMessageDate ?? conv.updatedDate ?? conv.createdDate,
+          );
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.base.withValues(alpha: hasUnread ? 0.55 : 0.35),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.base.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => _onConversationSelected(conv),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.base.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chat_bubble_rounded,
+                          color: AppColors.base,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    conv.topicName ??
+                                        conv.title ??
+                                        tr('support_default_chat_title'),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: textColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (timeLabel != null) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    timeLabel,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: hasUnread
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: hasUnread
+                                          ? const Color(0xFFEF4444)
+                                          : secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    conv.lastMessage?.isNotEmpty == true
+                                        ? (conv.lastMessage!.trim() ==
+                                                  '📷 Şəkil'
+                                              ? tr('chat_photo_message')
+                                              : conv.lastMessage!)
+                                        : tr('support_tap_to_continue'),
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: hasUnread
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: hasUnread
+                                          ? textColor
+                                          : secondaryTextColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (hasUnread) ...[
+                                  const SizedBox(width: 8),
+                                  _buildUnreadBadge(conv.unreadMessagesCount),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: secondaryTextColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildTopicCard(
     SupportTopic topic, {
     required bool isDark,
@@ -403,8 +716,8 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
     required Color borderColor,
   }) {
     final hasDesc = topic.description != null && topic.description!.isNotEmpty;
-    final hasPriority =
-        topic.priorityName != null && topic.priorityName!.isNotEmpty;
+    final priorityLabel = topic.localizedPriorityName;
+    final hasPriority = priorityLabel != null && priorityLabel.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -481,7 +794,7 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                topic.priorityName!,
+                                priorityLabel,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -690,8 +1003,8 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
           const SizedBox(height: 6),
           Text(
             _searchQuery.isNotEmpty
-                ? 'Fərqli axtarış sözü daxil edərək yenidən yoxlayın.'
-                : 'Yaxın zamanda yeni mövzular əlavə ediləcək.',
+                ? tr('support_topics_empty_search')
+                : tr('support_topics_empty_soon'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,

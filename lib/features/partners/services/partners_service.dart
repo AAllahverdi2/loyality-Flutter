@@ -18,6 +18,12 @@ class PartnersService {
     favoritesVersionNotifier.value++;
   }
 
+  /// İstifadəçi çıxış etdikdə və ya başqa hesabla daxil olduqda sevimlilər keşini təmizləyir
+  static void clearCache() {
+    favoriteIdsNotifier.value = {};
+    favoritesVersionNotifier.value++;
+  }
+
   Future<List<Partner>> getAllPartners({
     String? partnerCategoryId,
     String? languageCode,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
@@ -37,14 +38,22 @@ class _DiscountsScreenState extends State<DiscountsScreen> {
   @override
   void initState() {
     super.initState();
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
     _loadOffers();
   }
 
   @override
   void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted) {
+      _loadOffers(showLoading: _offers.isEmpty);
+    }
   }
 
   bool get _hasActiveFilters =>
@@ -74,7 +83,9 @@ class _DiscountsScreenState extends State<DiscountsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Məlumatları yükləmək mümkün olmadı: $e';
+          _errorMessage = NetworkMonitor.isNetworkError(e)
+              ? tr('network_error_desc')
+              : tr('common_error_retry');
           _loading = false;
         });
       }

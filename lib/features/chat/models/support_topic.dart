@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 
 class SupportTopic {
   final String id;
@@ -43,13 +44,43 @@ class SupportTopic {
     };
   }
 
+  String? get localizedPriorityName {
+    final raw = (priorityName ?? priority ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return priorityName;
+    if (raw == 'low' || raw == 'aşağı' || raw == 'asagi' || raw == '1') {
+      return tr('support_priority_low');
+    } else if (raw == 'normal' || raw == '2') {
+      return tr('support_priority_normal');
+    } else if (raw == 'medium' || raw == 'orta') {
+      return tr('support_priority_medium');
+    } else if (raw == 'high' ||
+        raw == 'yüksək' ||
+        raw == 'yuksek' ||
+        raw == '3') {
+      return tr('support_priority_high');
+    } else if (raw == 'urgent' ||
+        raw == 'critical' ||
+        raw == 'kritik' ||
+        raw == '4') {
+      return tr('support_priority_critical');
+    }
+    return priorityName;
+  }
+
   Color get priorityColor {
-    final p = priority?.toLowerCase() ?? '';
-    if (p == 'high' || p == 'urgent' || p == 'yüksək' || p == 'yuksek') {
+    final p = (priority ?? priorityName ?? '').toLowerCase();
+    if (p == 'high' ||
+        p == 'urgent' ||
+        p == 'critical' ||
+        p == 'kritik' ||
+        p == 'yüksək' ||
+        p == 'yuksek' ||
+        p == '3' ||
+        p == '4') {
       return const Color(0xFFEF4444);
     } else if (p == 'medium' || p == 'orta') {
       return const Color(0xFFF59E0B);
-    } else if (p == 'low' || p == 'aşağı' || p == 'asagi') {
+    } else if (p == 'low' || p == 'aşağı' || p == 'asagi' || p == '1') {
       return const Color(0xFF10B981);
     }
     return const Color(0xFF6B7280);

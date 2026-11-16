@@ -3,9 +3,17 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/core/utils/device_helper.dart';
 import 'package:loyallig_flutter/features/auth/login_screen.dart';
+import 'package:loyallig_flutter/features/chat/services/support_chat_hub_service.dart';
+import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
+import 'package:loyallig_flutter/features/discounts/services/discounts_service.dart';
+import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
+import 'package:loyallig_flutter/features/history/services/wallet_service.dart';
+import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
+import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 import 'package:loyallig_flutter/main.dart';
 
 class ApiClient {
@@ -50,9 +58,18 @@ class ApiClient {
           return handler.next(options);
         },
         onResponse: (response, handler) {
+          NetworkMonitor.instance.reportOnline();
           return handler.next(response);
         },
         onError: (DioException error, handler) async {
+          if (error.response != null) {
+            NetworkMonitor.instance.reportOnline();
+          } else if (NetworkMonitor.isNetworkError(error) &&
+              error.requestOptions.extra['skipOfflineOverlay'] != true) {
+            NetworkMonitor.instance.reportOffline();
+            return handler.next(error);
+          }
+
           // 401 Unauthorized: Access Token-in vaxtı bitdikdə və ya etibarsız olduqda
           if (error.response?.statusCode == 401) {
             debugPrint('🚨 [401 UNAUTHORIZED]: ${error.requestOptions.path}');
@@ -105,8 +122,14 @@ class ApiClient {
                   final retryResponse = await _dio.fetch(options);
                   return handler.resolve(retryResponse);
                 } catch (e) {
+                  if (NetworkMonitor.isNetworkError(e)) {
+                    NetworkMonitor.instance.reportOffline();
+                  }
                   return handler.next(error);
                 }
+              } else if (_lastRefreshWasNetworkError) {
+                NetworkMonitor.instance.reportOffline();
+                return handler.next(error);
               } else {
                 // Refresh token uğursuz olduqda dərhal Login-ə yönləndiririk
                 _handleAuthFailure();
@@ -140,6 +163,7 @@ class ApiClient {
   String? _accessToken;
   String? _refreshToken;
   bool _isRefreshing = false;
+  bool _lastRefreshWasNetworkError = false;
   Completer<bool>? _refreshCompleter;
   static DateTime? _lastRedirectTime;
 
@@ -182,16 +206,23 @@ class ApiClient {
     setTokens(accessToken: token);
   }
 
-  // Bütün tokenləri silmək (Çıxış zamanı)
+  // Bütün tokenləri və istifadəçi keşlərini silmək (Çıxış zamanı)
   void clearAuthToken() {
     _accessToken = null;
     _refreshToken = null;
+    ProfileService.clearCache();
+    WalletService.clearCache();
+    PartnersService.clearCache();
+    TransactionService.clearLookupsCache();
+    DiscountsService.clearLookupsCache();
     TokenStorage.clearTokens();
   }
 
   // İstifadəçini çıxarıb Login ekranına yönləndirmək
   static void redirectToLogin() {
     instance.clearAuthToken();
+    unawaited(SupportChatHubService.instance.stop());
+    SupportConversationsStore.instance.clear();
 
     final now = DateTime.now();
     if (_lastRedirectTime != null &&
@@ -222,6 +253,7 @@ class ApiClient {
     }
 
     _isRefreshing = true;
+    _lastRefreshWasNetworkError = false;
     _refreshCompleter = Completer<bool>();
 
     try {
@@ -300,6 +332,7 @@ class ApiClient {
       return false;
     } catch (e) {
       debugPrint('❌ [REFRESH TOKEN XƏTASI]: $e');
+      _lastRefreshWasNetworkError = NetworkMonitor.isNetworkError(e);
       _refreshCompleter?.complete(false);
       return false;
     } finally {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -5,7 +7,9 @@ import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/core/services/biometric_service.dart';
 import 'package:loyallig_flutter/core/theme/app_theme.dart';
+import 'package:loyallig_flutter/core/widgets/network_error_view.dart';
 import 'package:loyallig_flutter/features/auth/biometric_lock_screen.dart';
+import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
 import 'package:loyallig_flutter/features/splash/splash_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -32,6 +36,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(SupportConversationsStore.instance.initGlobalSession());
   }
 
   @override
@@ -43,12 +48,18 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      // Əgər hazırda biometrik dialoq aktiv deyilsə, arxa plana keçid vaxtını saxlayırıq
-      if (!BiometricService.instance.isAuthenticating) {
+      // Əgər hazırda biometrik dialoq və ya xarici əməliyyat (kamera/fayl) aktiv deyilsə, arxa plana keçid vaxtını saxlayırıq
+      if (!BiometricService.instance.isAuthenticating &&
+          !BiometricService.instance.isLockSuppressed) {
         _pausedTime = DateTime.now();
+      } else {
+        _pausedTime = null;
       }
     } else if (state == AppLifecycleState.resumed) {
-      if (_pausedTime != null && !BiometricService.instance.isAuthenticating) {
+      unawaited(SupportConversationsStore.instance.onAppResumed());
+      if (_pausedTime != null &&
+          !BiometricService.instance.isAuthenticating &&
+          !BiometricService.instance.isLockSuppressed) {
         final elapsed = DateTime.now().difference(_pausedTime!);
         _pausedTime = null;
 
@@ -56,6 +67,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         if (elapsed.inSeconds >= 2) {
           _checkAndShowLockScreen();
         }
+      } else {
+        _pausedTime = null;
       }
     }
   }
@@ -121,7 +134,12 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
                 final isDark = Theme.of(context).brightness == Brightness.dark;
                 return AnnotatedRegion<SystemUiOverlayStyle>(
                   value: AppTheme.getOverlayStyle(isDark),
-                  child: child ?? const SizedBox.shrink(),
+                  child: Stack(
+                    children: [
+                      child ?? const SizedBox.shrink(),
+                      const GlobalNetworkErrorOverlay(),
+                    ],
+                  ),
                 );
               },
               home: const SplashScreen(),

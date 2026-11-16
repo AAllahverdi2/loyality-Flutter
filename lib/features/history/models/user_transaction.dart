@@ -178,16 +178,16 @@ class UserTransaction {
     List<UserTransactionItem> itemsList = [];
     if (json['items'] is List) {
       itemsList = (json['items'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map((item) => UserTransactionItem.fromJson(item))
+          .whereType<Map>()
+          .map((item) => UserTransactionItem.fromJson(Map<String, dynamic>.from(item)))
           .toList();
     }
 
     List<WalletHistoryEvent> walletHistoriesList = [];
     if (json['walletHistories'] is List) {
       walletHistoriesList = (json['walletHistories'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map((item) => WalletHistoryEvent.fromJson(item))
+          .whereType<Map>()
+          .map((item) => WalletHistoryEvent.fromJson(Map<String, dynamic>.from(item)))
           .toList();
     }
 

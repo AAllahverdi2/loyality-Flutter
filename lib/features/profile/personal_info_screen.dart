@@ -7,10 +7,13 @@ import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
+import 'package:loyallig_flutter/core/services/biometric_service.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/custom_input.dart';
 import 'package:loyallig_flutter/core/widgets/app_date_picker_dialog.dart';
 import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
+import 'package:loyallig_flutter/features/profile/change_email_screen.dart';
 import 'package:loyallig_flutter/features/profile/models/update_profile_request.dart';
 import 'package:loyallig_flutter/features/profile/models/user_profile.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
@@ -209,14 +212,32 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  Future<void> _openChangeEmailScreen() async {
+    final newEmail = await Navigator.of(context).push<String>(
+      SmoothPageRoute<String>(
+        builder: (_) => ChangeEmailScreen(
+          currentEmail: _emailController.text.trim(),
+        ),
+      ),
+    );
+
+    if (mounted && newEmail != null && newEmail.trim().isNotEmpty) {
+      setState(() {
+        _emailController.text = newEmail.trim();
+      });
+    }
+  }
+
   Future<void> _pickAndUploadAvatar(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
+      final picked = await BiometricService.instance.runWithSuppressedLock(
+        () => picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        ),
       );
 
       if (picked == null) return;
@@ -704,16 +725,103 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       marginBottom: 16,
                     ),
 
-                    // Email (Dəyişdirilə bilməz - Disabled & ReadOnly)
-                    CustomInput(
-                      label: tr('personal_email'),
-                      controller: _emailController,
-                      hint: 'example@gmail.com',
-                      enabled: false,
-                      readOnly: true,
-                      rightIcon: Icons.lock_outline_rounded,
-                      keyboardType: TextInputType.emailAddress,
-                      marginBottom: 16,
+                    // Email + "Emaili dəyiş" düyməsi
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              tr('personal_email'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: textColor,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _openChangeEmailScreen,
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.base.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.edit_outlined,
+                                      size: 14,
+                                      color: AppColors.base,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      tr('change_email_button'),
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.base,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _openChangeEmailScreen,
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            height: 50,
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF18181B)
+                                  : const Color(0xFFF3F4F6),
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF27272A)
+                                    : const Color(0xFFE5E7EB),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _emailController.text.isNotEmpty
+                                        ? _emailController.text
+                                        : 'example@gmail.com',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: _emailController.text.isNotEmpty
+                                          ? textColor
+                                          : secondaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 20,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                     // Date of Birth

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
+import 'package:loyallig_flutter/core/widgets/network_error_view.dart';
 import 'package:loyallig_flutter/features/profile/models/terms_and_condition.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,50 +26,34 @@ class TermsBottomSheet extends StatefulWidget {
 class _TermsBottomSheetState extends State<TermsBottomSheet> {
   final ProfileService _profileService = ProfileService();
   bool _loading = true;
+  bool _isNetworkError = false;
+  String? _errorMessage;
   List<TermsAndCondition> _terms = [];
-
-  static final List<TermsAndCondition> _defaultTerms = [
-    const TermsAndCondition(
-      id: '1',
-      title: '1. Ümumi Müddəalar',
-      description:
-          'Bu "İstifadəçi Razılaşması" (bundan sonra "Razılaşma") sizin "Azera" mobil tətbiqindən istifadənizi tənzimləyir. Tətbiqi yükləməklə və ya istifadə etməklə siz bu şərtləri qəbul etmiş sayılırsınız.',
-    ),
-    const TermsAndCondition(
-      id: '2',
-      title: '2. Qeydiyyat və Təhlükəsizlik',
-      description:
-          'Tətbiqdən tam istifadə etmək üçün hesab yaratmalısınız. Hesab məlumatlarınızın məxfiliyini qorumaq sizin məsuliyyətinizdədir. Şifrənizi üçüncü şəxslərlə paylaşmayın.',
-    ),
-    const TermsAndCondition(
-      id: '3',
-      title: '3. Bonus və Loyallıq Sistemi',
-      description:
-          'Qazanılan bonuslar real pula çevrilə bilməz. Bonuslar yalnız tərəfdaş mağazalarda və ya tətbiq daxilində təklif olunan xidmətlər üçün istifadə edilə bilər.',
-    ),
-    const TermsAndCondition(
-      id: '4',
-      title: '4. Məxfilik və Məlumatların Qorunması',
-      description:
-          'İstifadəçilərin şəxsi məlumatları qanunvericiliyin tələblərinə uyğun olaraq qorunur və üçüncü tərəflərə ötürülmür. Məlumatlar yalnız xidmət keyfiyyətinin artırılması məqsədilə emal edilir.',
-    ),
-    const TermsAndCondition(
-      id: '5',
-      title: '5. Dəyişikliklər və Xitam',
-      description:
-          'Şirkət istənilən vaxt qaydalar və şərtlərə dəyişiklik etmək hüququnu özündə saxlayır. Yenilənmiş şərtlər tətbiqdə dərc edildiyi andan qüvvəyə minir.',
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
     _fetchTerms();
+  }
+
+  @override
+  void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
+    super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted && _terms.isEmpty) {
+      _fetchTerms();
+    }
   }
 
   Future<void> _fetchTerms() async {
     setState(() {
       _loading = true;
+      _errorMessage = null;
+      _isNetworkError = false;
     });
 
     try {
@@ -75,14 +62,20 @@ class _TermsBottomSheetState extends State<TermsBottomSheet> {
       );
       if (mounted) {
         setState(() {
-          _terms = items.isNotEmpty ? items : _defaultTerms;
+          _terms = items;
           _loading = false;
+          _errorMessage = null;
+          _isNetworkError = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _terms = _defaultTerms;
+          _terms = [];
+          _isNetworkError = NetworkMonitor.isNetworkError(e);
+          _errorMessage = _isNetworkError
+              ? tr('network_error_desc')
+              : ProfileService.extractErrorMessage(e, tr('terms_load_error'));
           _loading = false;
         });
       }
@@ -196,19 +189,7 @@ class _TermsBottomSheetState extends State<TermsBottomSheet> {
                   ),
                   const SizedBox(height: 6),
 
-                  // Last updated
-                  Text(
-                    tr('terms_last_updated'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: secondaryTextColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Description prompt
+                  // Subtitle prompt
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
@@ -223,7 +204,7 @@ class _TermsBottomSheetState extends State<TermsBottomSheet> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Loading or Cards
+                  // Loading, Error, Empty, or Cards
                   if (_loading && _terms.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
@@ -236,6 +217,133 @@ class _TermsBottomSheetState extends State<TermsBottomSheet> {
                             color: iconColor,
                           ),
                         ),
+                      ),
+                    )
+                  else if (_errorMessage != null)
+                    _isNetworkError
+                        ? NetworkErrorView(
+                            compact: true,
+                            onRetry: () async {
+                              await _fetchTerms();
+                              return _errorMessage == null;
+                            },
+                          )
+                        : Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 28,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: borderColor,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 28,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  tr('terms_load_error'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: textColor,
+                                  ),
+                                ),
+                                if (_errorMessage != tr('terms_load_error')) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: secondaryTextColor,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 18),
+                                ElevatedButton.icon(
+                                  onPressed: _fetchTerms,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.base,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 11,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    tr('common_retry'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                  else if (_terms.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 32,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: borderColor,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.description_outlined,
+                            size: 38,
+                            color: secondaryTextColor,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            tr('terms_empty'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: secondaryTextColor,
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   else

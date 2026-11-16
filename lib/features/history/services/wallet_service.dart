@@ -11,6 +11,12 @@ class WalletService {
   static final ValueNotifier<WalletBalance?> balanceNotifier =
       ValueNotifier<WalletBalance?>(null);
 
+  /// İstifadəçi çıxış etdikdə və ya başqa hesabla daxil olduqda balans keşini təmizləyir
+  static void clearCache() {
+    cachedBalance = null;
+    balanceNotifier.value = null;
+  }
+
   /// Şəxsi cüzdan balansını gətirir (/api/Wallets/myBalance)
   Future<WalletBalance?> getMyBalance({bool forceRefresh = false}) async {
     if (!forceRefresh && cachedBalance != null) {

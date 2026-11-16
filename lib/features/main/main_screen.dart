@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:loyallig_flutter/features/auth/widgets/biometric_prompt_sheet.dart';
+import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
 import 'package:loyallig_flutter/features/favorites/favorites_screen.dart';
 import 'package:loyallig_flutter/features/history/history_screen.dart';
 import 'package:loyallig_flutter/features/home/home_screen.dart';
@@ -58,6 +61,7 @@ class _MainScreenState extends State<MainScreen>
     _currentIndex = widget.initialIndex;
     _loadedTabs.add(0); // Home hər zaman yüklənir
     _loadedTabs.add(_currentIndex);
+    unawaited(SupportConversationsStore.instance.initGlobalSession());
 
     _animController = AnimationController(
       vsync: this,

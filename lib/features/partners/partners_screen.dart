@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:loyallig_flutter/core/widgets/skeleton.dart';
@@ -35,13 +36,21 @@ class _PartnersScreenState extends State<PartnersScreen> {
     super.initState();
     _favoritePartnerIds.addAll(PartnersService.favoriteIdsNotifier.value);
     PartnersService.favoriteIdsNotifier.addListener(_onGlobalFavoritesChanged);
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
     _loadData();
   }
 
   @override
   void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
     PartnersService.favoriteIdsNotifier.removeListener(_onGlobalFavoritesChanged);
     super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted) {
+      _loadData();
+    }
   }
 
   void _onGlobalFavoritesChanged() {

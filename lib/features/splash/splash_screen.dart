@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/features/auth/biometric_lock_screen.dart';
@@ -20,11 +21,26 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _isChecking = true;
+  bool _waitingForReconnect = false;
 
   @override
   void initState() {
     super.initState();
+    NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
     _checkSessionAndBiometrics();
+  }
+
+  @override
+  void dispose() {
+    NetworkMonitor.instance.reconnectNotifier.removeListener(_onReconnected);
+    super.dispose();
+  }
+
+  void _onReconnected() {
+    if (mounted && _waitingForReconnect) {
+      _waitingForReconnect = false;
+      _checkSessionAndBiometrics();
+    }
   }
 
   Future<void> _checkSessionAndBiometrics() async {
@@ -45,9 +61,18 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       } catch (e) {
         debugPrint('Splash profil yoxlanışı: $e');
+        if (NetworkMonitor.isNetworkError(e) ||
+            NetworkMonitor.instance.isOffline) {
+          _waitingForReconnect = true;
+          return;
+        }
       }
 
       if (!mounted) return;
+      if (NetworkMonitor.instance.isOffline) {
+        _waitingForReconnect = true;
+        return;
+      }
 
       if (!hasPin) {
         // PIN kodu yoxdursa -> Məcburi PIN təyin etmə səhifəsinə yönləndiririk

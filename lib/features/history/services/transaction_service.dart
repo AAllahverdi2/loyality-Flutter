@@ -64,8 +64,8 @@ class TransactionService {
         }
 
         return list
-            .whereType<Map<String, dynamic>>()
-            .map((json) => UserTransaction.fromJson(json))
+            .whereType<Map>()
+            .map((json) => UserTransaction.fromJson(Map<String, dynamic>.from(json)))
             .toList();
       }
       return [];

@@ -10,6 +10,8 @@ class HomeHeader extends StatelessWidget {
     this.userName,
     this.onChatTap,
     this.onNotificationsTap,
+    this.hasUnreadChat = false,
+    this.unreadChatCount = 0,
     this.hasUnreadNotifications = true,
     super.key,
   });
@@ -19,6 +21,8 @@ class HomeHeader extends StatelessWidget {
   final String? userName;
   final VoidCallback? onChatTap;
   final VoidCallback? onNotificationsTap;
+  final bool hasUnreadChat;
+  final int unreadChatCount;
   final bool hasUnreadNotifications;
 
   // Ionicons chatbubble-ellipses-outline (1-to-1 exact vector from Expo)
@@ -106,9 +110,13 @@ class HomeHeader extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _HeaderIconButton(
+                  _ChatHeaderIconButton(
                     svgString: _chatbubbleEllipsesSvg,
                     backgroundColor: cardColor,
+                    headerBackgroundColor: backgroundColor,
+                    isDark: isDark,
+                    hasUnread: hasUnreadChat || unreadChatCount > 0,
+                    unreadCount: unreadChatCount,
                     onTap: onChatTap,
                   ),
                   const SizedBox(width: 12),
@@ -125,6 +133,202 @@ class HomeHeader extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ChatHeaderIconButton extends StatefulWidget {
+  const _ChatHeaderIconButton({
+    required this.svgString,
+    required this.backgroundColor,
+    required this.headerBackgroundColor,
+    required this.isDark,
+    required this.hasUnread,
+    required this.unreadCount,
+    required this.onTap,
+  });
+
+  final String svgString;
+  final Color backgroundColor;
+  final Color headerBackgroundColor;
+  final bool isDark;
+  final bool hasUnread;
+  final int unreadCount;
+  final VoidCallback? onTap;
+
+  @override
+  State<_ChatHeaderIconButton> createState() => _ChatHeaderIconButtonState();
+}
+
+class _ChatHeaderIconButtonState extends State<_ChatHeaderIconButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _pulseAnimation = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeOutCubic,
+    );
+    if (widget.hasUnread) {
+      _pulseController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatHeaderIconButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.hasUnread && widget.hasUnread) {
+      _pulseController.repeat();
+    } else if (oldWidget.hasUnread && !widget.hasUnread) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const accentOrange = Color(0xFFF97316);
+    const badgeRed = Color(0xFFDC2626);
+    final activeBg = widget.hasUnread
+        ? (widget.isDark
+            ? const Color(0xFF2B1A10)
+            : const Color(0xFFFFF3E6))
+        : widget.backgroundColor;
+
+    final badgeLabel = widget.unreadCount > 99
+        ? '99+'
+        : (widget.unreadCount > 0 ? '${widget.unreadCount}' : '');
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Nəzərəçarpan nəbz (pulse) halqası
+          if (widget.hasUnread)
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, _) {
+                final t = _pulseAnimation.value;
+                return IgnorePointer(
+                  child: Transform.scale(
+                    scale: 1.0 + (t * 0.24),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: accentOrange.withValues(
+                            alpha: (1.0 - t) * 0.55,
+                          ),
+                          width: 2.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+          // Əsas çat düyməsi
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: activeBg,
+              shape: BoxShape.circle,
+              border: widget.hasUnread
+                  ? Border.all(
+                      color: accentOrange.withValues(
+                        alpha: widget.isDark ? 0.75 : 0.65,
+                      ),
+                      width: 1.5,
+                    )
+                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: widget.hasUnread
+                      ? accentOrange.withValues(alpha: 0.22)
+                      : Colors.black.withValues(alpha: 0.05),
+                  blurRadius: widget.hasUnread ? 10 : 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: widget.onTap,
+                child: Center(
+                  child: SvgPicture.string(
+                    widget.svgString,
+                    width: 22,
+                    height: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Oxunmamış mesaj sayı / parlaq bildiriş nişanı
+          if (widget.hasUnread)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: IgnorePointer(
+                child: Container(
+                  constraints: BoxConstraints(
+                    minWidth: badgeLabel.isNotEmpty ? 19 : 13,
+                    minHeight: badgeLabel.isNotEmpty ? 19 : 13,
+                  ),
+                  padding: badgeLabel.isNotEmpty
+                      ? const EdgeInsets.symmetric(horizontal: 5, vertical: 2)
+                      : EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: widget.isDark
+                        ? const Color(0xFFEF4444)
+                        : badgeRed,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: widget.headerBackgroundColor,
+                      width: 2,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: badgeLabel.isNotEmpty
+                      ? Text(
+                          badgeLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            height: 1.1,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
