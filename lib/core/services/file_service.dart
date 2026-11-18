@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
 
@@ -199,6 +200,47 @@ class FileService {
     );
   }
 
+  static String _extractFileName(String path) {
+    final parts = path.split(RegExp(r'[/\\]')).where((p) => p.isNotEmpty);
+    return parts.isNotEmpty ? parts.last : path;
+  }
+
+  /// Cross-platform (Web + Mobile) XFile yükləməsi (POST /api/File/upload)
+  Future<FileUploadResponse> uploadXFile(
+    XFile file, {
+    String type = 'string',
+    ProgressCallback? onSendProgress,
+  }) async {
+    try {
+      final bytes = await file.readAsBytes();
+      var fileName = file.name.trim();
+      if (fileName.isEmpty) {
+        fileName = _extractFileName(file.path).trim();
+      }
+      if (fileName.isEmpty || !fileName.contains('.')) {
+        final ext = switch (file.mimeType?.toLowerCase()) {
+          'image/png' => 'png',
+          'image/webp' => 'webp',
+          'image/gif' => 'gif',
+          _ => 'jpg',
+        };
+        fileName = fileName.isEmpty
+            ? 'image_${DateTime.now().millisecondsSinceEpoch}.$ext'
+            : '$fileName.$ext';
+      }
+
+      return await uploadBytes(
+        bytes,
+        fileName: fileName,
+        type: type,
+        onSendProgress: onSendProgress,
+      );
+    } catch (e) {
+      debugPrint('❌ [XFILE YÜKLƏNMƏ XƏTASI]: $e');
+      return FileUploadResponse.failure(e.toString());
+    }
+  }
+
   /// 1b. Çoxsaylı faylları serverə yükləmək (POST /api/File/upload)
   /// Backend formData parametrləri:
   /// - 'Files': array of files
@@ -217,7 +259,7 @@ class FileService {
         final f = files[i];
         final name = (fileNames != null && i < fileNames.length)
             ? fileNames[i]
-            : f.path.split(Platform.pathSeparator).last;
+            : _extractFileName(f.path);
 
         final multipartFile = await MultipartFile.fromFile(
           f.path,

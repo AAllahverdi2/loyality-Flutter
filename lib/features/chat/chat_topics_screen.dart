@@ -14,6 +14,7 @@ import 'package:loyallig_flutter/features/chat/services/support_chat_hub_service
 import 'package:loyallig_flutter/features/chat/services/support_chat_service.dart';
 import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
 import 'package:loyallig_flutter/features/chat/services/support_topics_service.dart';
+import 'package:loyallig_flutter/features/chat/widgets/chat_dialogs.dart';
 
 class ChatTopicsScreen extends StatefulWidget {
   const ChatTopicsScreen({super.key});
@@ -122,7 +123,19 @@ class _ChatTopicsScreenState extends State<ChatTopicsScreen> {
     return _myConversations.where((c) => c.isOpen).toList();
   }
 
-  void _onTopicSelected(SupportTopic topic) {
+  Future<void> _onTopicSelected(SupportTopic topic) async {
+    final activeList = _activeConversations;
+    if (activeList.isNotEmpty) {
+      final openActive = await ChatDialogs.showActiveConversationWarning(
+        context,
+      );
+      if (openActive && mounted && _activeConversations.isNotEmpty) {
+        _onConversationSelected(_activeConversations.first);
+      }
+      return;
+    }
+
+    if (!mounted) return;
     Navigator.of(context)
         .push(
           SmoothPageRoute<void>(

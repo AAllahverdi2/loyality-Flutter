@@ -388,6 +388,9 @@
   "support_priority_medium": "Средний",
   "support_priority_high": "Высокий",
   "support_priority_critical": "Критический",
+  "support_active_exists_title": "У вас сейчас есть активное обращение",
+  "support_active_exists_desc": "У вас уже есть активное обращение. Пожалуйста, закройте его, прежде чем создавать новое.",
+  "support_active_exists_go_btn": "Перейти к активному обращению",
 
   "chat_header_title": "Поддержка Azera",
   "chat_status_closed": "Чат закрыт",

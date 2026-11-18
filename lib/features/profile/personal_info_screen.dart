@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,7 +39,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   bool _loading = false;
 
   String? _avatarFileId;
-  File? _avatarLocalFile;
+  Uint8List? _avatarLocalBytes;
   bool _uploadingAvatar = false;
 
   String _formatDateForDisplay(String? date) {
@@ -242,14 +241,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
       if (picked == null) return;
 
-      final file = File(picked.path);
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
 
       setState(() {
-        _avatarLocalFile = file;
+        _avatarLocalBytes = bytes;
         _uploadingAvatar = true;
       });
 
-      final response = await _profileService.uploadAvatar(file);
+      final response = await _profileService.uploadAvatarXFile(picked);
 
       if (!mounted) return;
 
@@ -264,7 +264,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         _showSnackbar(tr('personal_avatar_success'), isError: false);
       } else {
         setState(() {
-          _avatarLocalFile = null;
+          _avatarLocalBytes = null;
         });
         _showSnackbar(
           response.errorMessage ?? tr('personal_avatar_error'),
@@ -275,7 +275,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       if (!mounted) return;
       setState(() {
         _uploadingAvatar = false;
-        _avatarLocalFile = null;
+        _avatarLocalBytes = null;
       });
       _showSnackbar('${tr('personal_avatar_pick_error')}: $e', isError: true);
     }
@@ -361,7 +361,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   _pickAndUploadAvatar(ImageSource.camera);
                 },
               ),
-              if (_avatarLocalFile != null ||
+              if (_avatarLocalBytes != null ||
                   (_avatarFileId != null && _avatarFileId!.isNotEmpty)) ...[
                 ListTile(
                   leading: Container(
@@ -384,7 +384,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   onTap: () {
                     Navigator.of(ctx).pop();
                     setState(() {
-                      _avatarLocalFile = null;
+                      _avatarLocalBytes = null;
                       _avatarFileId = null;
                     });
                     _showSnackbar(tr('personal_avatar_deleted'));
@@ -897,12 +897,12 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   }
 
   Widget _buildAvatarImage(bool isDark) {
-    if (_uploadingAvatar && _avatarLocalFile != null) {
+    if (_uploadingAvatar && _avatarLocalBytes != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.file(
-            _avatarLocalFile!,
+          Image.memory(
+            _avatarLocalBytes!,
             fit: BoxFit.cover,
             width: 100,
             height: 100,
@@ -923,9 +923,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       );
     }
 
-    if (_avatarLocalFile != null) {
-      return Image.file(
-        _avatarLocalFile!,
+    if (_avatarLocalBytes != null) {
+      return Image.memory(
+        _avatarLocalBytes!,
         fit: BoxFit.cover,
         width: 100,
         height: 100,

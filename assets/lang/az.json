@@ -388,6 +388,9 @@
   "support_priority_medium": "Orta",
   "support_priority_high": "Yüksək",
   "support_priority_critical": "Kritik",
+  "support_active_exists_title": "Hazırda aktiv müraciətiniz var",
+  "support_active_exists_desc": "Sizin hazırda aktiv müraciətiniz var. Zəhmət olmasa mövcud müraciəti bağladıqdan sonra yeni müraciət yaradın.",
+  "support_active_exists_go_btn": "Aktiv müraciətə keç",
 
   "chat_header_title": "Azera Dəstək",
   "chat_status_closed": "Söhbət bağlanıb",

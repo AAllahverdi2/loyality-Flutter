@@ -105,7 +105,7 @@ class BiometricService {
   Future<String> getBiometricDisplayName() async {
     try {
       final biometrics = await getAvailableBiometrics();
-      if (Platform.isIOS) {
+      if (!kIsWeb && Platform.isIOS) {
         if (biometrics.contains(BiometricType.face)) {
           return 'Face ID';
         } else if (biometrics.contains(BiometricType.fingerprint)) {

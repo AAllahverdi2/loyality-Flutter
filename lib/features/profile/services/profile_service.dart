@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
@@ -191,6 +192,11 @@ class ProfileService {
   /// Profil şəklini yükləmək (POST /api/File/upload)
   Future<FileUploadResponse> uploadAvatar(File file) async {
     return await FileService().uploadFile(file);
+  }
+
+  /// Cross-platform profil şəklini yükləmək (Web + Mobile)
+  Future<FileUploadResponse> uploadAvatarXFile(XFile file) async {
+    return await FileService().uploadXFile(file);
   }
 
   /// Profil şəklini silmək (DELETE /api/File/delete/{avatarFileId})

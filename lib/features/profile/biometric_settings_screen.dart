@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
@@ -61,7 +62,9 @@ class _BiometricSettingsScreenState extends State<BiometricSettingsScreen> {
       return 'Face ID';
     }
     if (_primaryType == BiometricType.fingerprint) {
-      return Platform.isIOS ? 'Touch ID' : tr('biometric_type_fingerprint');
+      return (!kIsWeb && Platform.isIOS)
+          ? 'Touch ID'
+          : tr('biometric_type_fingerprint');
     }
     return tr('biometric_default_name');
   }

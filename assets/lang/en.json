@@ -388,6 +388,9 @@
   "support_priority_medium": "Medium",
   "support_priority_high": "High",
   "support_priority_critical": "Critical",
+  "support_active_exists_title": "You currently have an active request",
+  "support_active_exists_desc": "You currently have an active request. Please close it before creating a new one.",
+  "support_active_exists_go_btn": "Go to Active Request",
 
   "chat_header_title": "Azera Support",
   "chat_status_closed": "Chat closed",

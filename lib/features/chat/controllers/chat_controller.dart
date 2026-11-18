@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -623,8 +622,7 @@ class ChatController extends ChangeNotifier {
       isUploadingAttachment = true;
       _safeNotify();
 
-      final file = File(picked.path);
-      final res = await fileService.uploadFile(file);
+      final res = await fileService.uploadXFile(picked);
 
       if (_isDisposed) return;
       isUploadingAttachment = false;
@@ -755,6 +753,13 @@ class ChatController extends ChangeNotifier {
       isUploadingAttachment = false;
       isSending = false;
       _safeNotify();
+      onShowNotification?.call(
+        SupportChatService.extractFriendlyErrorMessage(
+          e,
+          fallbackKey: 'chat_file_upload_error',
+        ),
+        isError: true,
+      );
     }
   }
 

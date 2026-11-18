@@ -63,7 +63,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         final elapsed = DateTime.now().difference(_pausedTime!);
         _pausedTime = null;
 
-        // Tətbiq 2 saniyədən çox arxa planda qaldıqda biometrik kilid yoxlanılır
+        // Tətbiqanılır
         if (elapsed.inSeconds >= 2) {
           _checkAndShowLockScreen();
         }
