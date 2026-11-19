@@ -7,7 +7,6 @@ import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
 import 'package:loyallig_flutter/core/services/biometric_service.dart';
-import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/custom_input.dart';
 import 'package:loyallig_flutter/core/widgets/app_date_picker_dialog.dart';
 import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
@@ -212,12 +211,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   }
 
   Future<void> _openChangeEmailScreen() async {
-    final newEmail = await Navigator.of(context).push<String>(
-      SmoothPageRoute<String>(
-        builder: (_) => ChangeEmailScreen(
-          currentEmail: _emailController.text.trim(),
-        ),
-      ),
+    final newEmail = await ChangeEmailScreen.confirmAndOpen(
+      context,
+      currentEmail: _emailController.text.trim(),
     );
 
     if (mounted && newEmail != null && newEmail.trim().isNotEmpty) {

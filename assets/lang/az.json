@@ -454,6 +454,9 @@
   "change_email_resend": "Kodu yenidən göndər",
   "change_email_sending": "Göndərilir...",
   "change_email_success": "E-poçt ünvanınız uğurla yeniləndi",
+  "change_email_confirm_dialog_title": "E-poçt ünvanını dəyişmək istədiyinizə əminsiniz?",
+  "change_email_confirm_dialog_desc": "Təsdiqlədiyiniz halda təhlükəsizlik məqsədilə cari e-poçt ünvanınıza 6 rəqəmli təsdiq kodu göndəriləcək.",
+  "change_email_confirm_dialog_proceed": "Bəli, davam et",
 
   "network_error_title": "Şəbəkə xətası",
   "network_error_desc": "İnternet bağlantısı yoxdur və ya serverlə əlaqə kəsilib. Zəhmət olmasa bağlantını yoxlayıb yenidən cəhd edin.",

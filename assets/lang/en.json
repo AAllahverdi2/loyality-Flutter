@@ -454,6 +454,9 @@
   "change_email_resend": "Resend code",
   "change_email_sending": "Sending...",
   "change_email_success": "Your email address has been updated successfully",
+  "change_email_confirm_dialog_title": "Are you sure you want to change your email address?",
+  "change_email_confirm_dialog_desc": "If you confirm, a 6-digit verification code will be sent to your current email address for security.",
+  "change_email_confirm_dialog_proceed": "Yes, continue",
 
   "network_error_title": "Network Error",
   "network_error_desc": "No internet connection or unable to reach the server. Please check your connection and try again.",

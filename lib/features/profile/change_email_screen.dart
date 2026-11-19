@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
+import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/widgets/custom_input.dart';
 import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
@@ -22,6 +23,180 @@ class ChangeEmailScreen extends StatefulWidget {
     this.currentEmail,
     super.key,
   });
+
+  /// E-poçt dəyişmə axınını başlatmazdan əvvəl istifadəçidən təsdiq alır
+  static Future<String?> confirmAndOpen(
+    BuildContext context, {
+    String? currentEmail,
+  }) async {
+    final effectiveEmail =
+        (currentEmail ?? ProfileService.cachedProfile?.email ?? '').trim();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final bgColor = isDark ? const Color(0xFF1F1F1F) : Colors.white;
+        final cardBg =
+            isDark ? const Color(0xFF27272A) : const Color(0xFFF9FAFB);
+        final textColor =
+            isDark ? const Color(0xFFF9FAFB) : const Color(0xFF111827);
+        final secondaryTextColor =
+            isDark ? const Color(0xFFA1A1AA) : const Color(0xFF6B7280);
+        final borderColor = isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.06);
+
+        return Dialog(
+          backgroundColor: bgColor,
+          elevation: 8,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: borderColor, width: 1),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppColors.base.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 30,
+                      color: AppColors.base,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    tr('change_email_confirm_dialog_title'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    tr('change_email_confirm_dialog_desc'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: secondaryTextColor,
+                    ),
+                  ),
+                  if (effectiveEmail.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.email_outlined,
+                            size: 16,
+                            color: AppColors.base,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              effectiveEmail,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.base,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        tr('change_email_confirm_dialog_proceed'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: secondaryTextColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        tr('common_cancel'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return null;
+
+    return Navigator.of(context).push<String>(
+      SmoothPageRoute<String>(
+        builder: (_) => ChangeEmailScreen(
+          currentEmail: effectiveEmail.isNotEmpty ? effectiveEmail : null,
+        ),
+      ),
+    );
+  }
 
   @override
   State<ChangeEmailScreen> createState() => _ChangeEmailScreenState();

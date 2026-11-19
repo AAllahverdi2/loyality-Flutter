@@ -33,11 +33,7 @@ class SecurityScreen extends StatelessWidget {
   }
 
   void _navigateToChangeEmail(BuildContext context) {
-    Navigator.of(context).push(
-      SmoothPageRoute<void>(
-        builder: (_) => const ChangeEmailScreen(),
-      ),
-    );
+    ChangeEmailScreen.confirmAndOpen(context);
   }
 
   void _navigateToPinCode(BuildContext context) {
