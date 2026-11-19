@@ -127,13 +127,10 @@ class SupportChatHubService {
   /// Hub-a qoşulmaq
   Future<bool> initAndConnect() async {
     if (isConnected) {
-      debugPrint('🟢 [SIGNALR] Artıq Hub-a qoşulub.');
-      _connectionStateController.add(HubConnectionState.Connected);
       return true;
     }
 
     if (_connectCompleter != null) {
-      debugPrint('⏳ [SIGNALR] Hal-hazırda qoşulma gedir, gözlənilir...');
       return _connectCompleter!.future;
     }
 
@@ -163,7 +160,9 @@ class SupportChatHubService {
       }
 
       final hubUrl = ApiEndpoints.supportChatHub;
-      debugPrint('🔌 [SIGNALR] Hub-a qoşulur: $hubUrl');
+      if (kDebugMode) {
+        debugPrint('🔌 [SIGNALR] Hub-a qoşulur...');
+      }
 
       _hubConnection = HubConnectionBuilder()
           .withUrl(
@@ -186,12 +185,16 @@ class SupportChatHubService {
       _setupListeners();
 
       _hubConnection?.onreconnecting(({error}) {
-        debugPrint('⚠️ [SIGNALR] Yenidən qoşulur: $error');
+        if (kDebugMode) {
+          debugPrint('⚠️ [SIGNALR] Yenidən qoşulur: $error');
+        }
         _connectionStateController.add(HubConnectionState.Reconnecting);
       });
 
       _hubConnection?.onreconnected(({connectionId}) {
-        debugPrint('🟢 [SIGNALR] Yenidən qoşuldu! ConnectionId: $connectionId');
+        if (kDebugMode) {
+          debugPrint('🟢 [SIGNALR] Yenidən qoşuldu!');
+        }
         _connectionStateController.add(HubConnectionState.Connected);
         // Connection yenidən qurularsa JoinConversation(conversationId) təkrar çağırılır
         if (_activeConversationId != null) {
@@ -200,17 +203,23 @@ class SupportChatHubService {
       });
 
       _hubConnection?.onclose(({error}) {
-        debugPrint('🔴 [SIGNALR] Bağlantı bağlandı: $error');
+        if (kDebugMode) {
+          debugPrint('🔴 [SIGNALR] Bağlantı bağlandı: $error');
+        }
         _connectionStateController.add(HubConnectionState.Disconnected);
       });
 
       await _hubConnection?.start();
-      debugPrint('✅ [SIGNALR] Uğurla qoşuldu! State: ${_hubConnection?.state}');
+      if (kDebugMode) {
+        debugPrint('✅ [SIGNALR] Uğurla qoşuldu! State: ${_hubConnection?.state}');
+      }
       _connectionStateController.add(HubConnectionState.Connected);
       completer.complete(true);
       return true;
     } catch (e) {
-      debugPrint('❌ [SIGNALR] Qoşulma xətası: $e');
+      if (kDebugMode) {
+        debugPrint('❌ [SIGNALR] Qoşulma xətası: $e');
+      }
       _connectionStateController.add(HubConnectionState.Disconnected);
       completer.complete(false);
       return false;
@@ -225,9 +234,6 @@ class SupportChatHubService {
     bool isExplicitOperatorEvent = false,
   }) {
     try {
-      debugPrint(
-        '⌨️ [SIGNALR $eventName] Gəldi! len=${args?.length ?? 0}, rawArgs=$args',
-      );
       bool isTyping = false;
       String? convId;
       String? senderUserId;
@@ -294,18 +300,12 @@ class SupportChatHubService {
         }
       }
 
-      debugPrint(
-        '⌨️ [SIGNALR $eventName PARSED] convId=$convId, '
-        'operatorOrSenderId=$senderUserId, isTyping=$isTyping',
-      );
-
       if (!isExplicitOperatorEvent) {
         // 1. Öz connectionId-mizdirsə filtr et
         final myConnId = _hubConnection?.connectionId;
         if (senderConnectionId != null &&
             myConnId != null &&
             senderConnectionId == myConnId) {
-          debugPrint('🔇 [SIGNALR $eventName] Öz connectionId-miz filtr edildi.');
           return;
         }
 
@@ -315,7 +315,6 @@ class SupportChatHubService {
             _currentUserId != null &&
             _currentUserId!.isNotEmpty &&
             senderUserId.toLowerCase() == _currentUserId!.toLowerCase()) {
-          debugPrint('🔇 [SIGNALR $eventName] Öz userId-miz filtr edildi.');
           return;
         }
 
@@ -327,7 +326,6 @@ class SupportChatHubService {
               st == 'client' ||
               st == 'mobileuser' ||
               st == '1') {
-            debugPrint('🔇 [SIGNALR $eventName] Müştəri senderType filtr edildi.');
             return;
           }
         }
@@ -350,7 +348,6 @@ class SupportChatHubService {
             DateTime.now().difference(_lastSentTypingAt!) <
                 const Duration(milliseconds: 600)) {
           _lastSentTypingAt = null;
-          debugPrint('🔇 [SIGNALR $eventName] Öz typing echo-muz filtr edildi.');
           return;
         }
       }
@@ -371,7 +368,6 @@ class SupportChatHubService {
     // 1. Yeni Mesaj: ReceiveMessage(message) — həm qrupa, həm də user_{userId} otağına gəlir
     _hubConnection?.on('ReceiveMessage', (List<dynamic>? args) {
       try {
-        debugPrint('📥 [SIGNALR ReceiveMessage]: $args');
         if (args != null && args.isNotEmpty) {
           Map<String, dynamic>? msgMap;
           String? convIdFromArgs;
@@ -398,9 +394,6 @@ class SupportChatHubService {
                 (_, ts) => now.difference(ts) > const Duration(seconds: 6),
               );
               if (_recentReceivedMsgIds.containsKey(normId)) {
-                debugPrint(
-                  '🔁 [SIGNALR ReceiveMessage] Dublikat event filtr edildi: $rawServerId',
-                );
                 return;
               }
               _recentReceivedMsgIds[normId] = now;
@@ -439,7 +432,6 @@ class SupportChatHubService {
     // 3. Mesajlar oxundu: MessagesSeen(conversationId, messageIds, seenAt)
     _hubConnection?.on('MessagesSeen', (List<dynamic>? args) {
       try {
-        debugPrint('👀 [SIGNALR MessagesSeen]: $args');
         List<String> msgIds = [];
         String? convId;
         DateTime? seenAt;
@@ -495,10 +487,6 @@ class SupportChatHubService {
           globalSeenTimestamps[id.toLowerCase()] = effectiveSeenAt;
         }
 
-        debugPrint(
-          '✅ [SIGNALR MessagesSeen Parsed]: convId=$convId, count=${msgIds.length}, seenAt=$effectiveSeenAt',
-        );
-
         _seenController.add(
           MessagesSeenEvent(
             conversationId: convId ?? _activeConversationId,
@@ -514,7 +502,6 @@ class SupportChatHubService {
     // 4. Söhbət Statusu Dəyişdi: ConversationStatusChanged(conversationId, status)
     _hubConnection?.on('ConversationStatusChanged', (List<dynamic>? args) {
       try {
-        debugPrint('🔄 [SIGNALR ConversationStatusChanged]: $args');
         String status = '';
         String? convId;
 
@@ -554,10 +541,11 @@ class SupportChatHubService {
       if (!ok) return;
     }
     try {
-      debugPrint('🚪 [SIGNALR] JoinConversation çağırılır: $conversationId');
       await _hubConnection?.invoke('JoinConversation', args: [conversationId]);
     } catch (e) {
-      debugPrint('❌ [SIGNALR JoinConversation Error]: $e');
+      if (kDebugMode) {
+        debugPrint('❌ [SIGNALR JoinConversation Error]: $e');
+      }
     }
   }
 
@@ -565,14 +553,15 @@ class SupportChatHubService {
   Future<void> leaveConversation(String conversationId) async {
     try {
       if (isConnected) {
-        debugPrint('🚪 [SIGNALR] LeaveConversation çağırılır: $conversationId');
         await _hubConnection?.invoke(
           'LeaveConversation',
           args: [conversationId],
         );
       }
     } catch (e) {
-      debugPrint('❌ [SIGNALR LeaveConversation Error]: $e');
+      if (kDebugMode) {
+        debugPrint('❌ [SIGNALR LeaveConversation Error]: $e');
+      }
     } finally {
       if (_activeConversationId == conversationId) {
         _activeConversationId = null;

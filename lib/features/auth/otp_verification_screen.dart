@@ -30,6 +30,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _keyboardFocusNodes =
+      List.generate(6, (_) => FocusNode());
 
   final _authService = AuthService();
   Timer? _timer;
@@ -64,6 +66,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       c.dispose();
     }
     for (final f in _focusNodes) {
+      f.dispose();
+    }
+    for (final f in _keyboardFocusNodes) {
       f.dispose();
     }
     super.dispose();
@@ -186,15 +191,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       final deviceId = await DeviceHelper.getDeviceId();
       final deviceName = await DeviceHelper.getDeviceName();
 
-      debugPrint('==============================================');
-      debugPrint('🔑 [POST /api/Auth/register GÖNDƏRİLİR]');
-      debugPrint('📧 Email       : ${widget.registerData.email}');
-      debugPrint('👤 Ad Soyad    : ${widget.registerData.firstName} ${widget.registerData.lastName}');
-      debugPrint('🔢 OtpCode     : $code');
-      debugPrint('🆔 Device ID   : $deviceId');
-      debugPrint('📛 Device Name : $deviceName');
-      debugPrint('==============================================');
-
       // Təsdiq kodu və qeydiyyat məlumatları birbaşa /api/Auth/register-ə göndərilir
       await _authService.register(
         RegisterRequest(
@@ -292,7 +288,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
 
     try {
-      debugPrint('🔄 [KOD YENİDƏN GÖNDƏRİLİR: /api/Auth/sendRegisterCode]');
       await _authService.sendRegisterCode(widget.registerData);
 
       if (!mounted) return;
@@ -390,7 +385,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       width: 48,
                       height: 56,
                       child: KeyboardListener(
-                        focusNode: FocusNode(),
+                        focusNode: _keyboardFocusNodes[index],
                         onKeyEvent: (event) => _onKeyDown(index, event),
                         child: TextField(
                           controller: _controllers[index],

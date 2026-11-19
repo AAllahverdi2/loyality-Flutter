@@ -210,6 +210,8 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
   final List<TextEditingController> _otpControllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _keyboardFocusNodes =
+      List.generate(6, (_) => FocusNode());
 
   _ChangeEmailStage _stage = _ChangeEmailStage.verifyCurrentEmail;
   String _currentEmail = '';
@@ -267,6 +269,9 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
       c.dispose();
     }
     for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
+    for (final f in _keyboardFocusNodes) {
       f.dispose();
     }
     super.dispose();
@@ -1174,7 +1179,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
             width: 48,
             height: 56,
             child: KeyboardListener(
-              focusNode: FocusNode(),
+              focusNode: _keyboardFocusNodes[index],
               onKeyEvent: (event) => _onKeyDown(index, event),
               child: TextField(
                 controller: _otpControllers[index],

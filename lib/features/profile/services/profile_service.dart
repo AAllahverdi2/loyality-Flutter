@@ -83,8 +83,9 @@ class ProfileService {
 
     try {
       final response = await _client.get(ApiEndpoints.myBarcode);
-      debugPrint(
-          '📦 [MY_BARCODE CAVABI]: ${response.statusCode} - ${response.data}');
+      if (kDebugMode) {
+        debugPrint('📦 [MY_BARCODE]: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;

@@ -269,7 +269,6 @@ class FileService {
         formData.files.add(MapEntry('Files', multipartFile));
       }
 
-      debugPrint('📤 [FAYLLAR YÜKLƏNİR]: ${files.length} fayl, Type=$type');
       final options = Options(
         headers: {
           ..._client.authHeaders,
@@ -285,10 +284,14 @@ class FileService {
         onSendProgress: onSendProgress,
       );
 
-      debugPrint('✅ [FAYL YÜKLƏNDİ]: ${response.statusCode} - ${response.data}');
+      if (kDebugMode) {
+        debugPrint('✅ [FAYL YÜKLƏNDİ]: ${response.statusCode}');
+      }
       return FileUploadResponse.fromResponse(response);
     } on DioException catch (e) {
-      debugPrint('❌ [FAYL YÜKLƏNMƏ XƏTASI]: ${e.response?.statusCode} - ${e.response?.data}');
+      if (kDebugMode) {
+        debugPrint('❌ [FAYL YÜKLƏNMƏ XƏTASI]: status=${e.response?.statusCode}');
+      }
       if (e.response != null) {
         return FileUploadResponse.fromResponse(e.response!);
       }
@@ -331,7 +334,6 @@ class FileService {
       formData.fields.add(MapEntry('Type', type));
       formData.files.add(MapEntry('Files', multipartFile));
 
-      debugPrint('📤 [BAYT FAYL YÜKLƏNİR]: $fileName (${bytes.length} bytes), Type=$type');
       final options = Options(
         headers: {
           ..._client.authHeaders,
@@ -347,10 +349,14 @@ class FileService {
         onSendProgress: onSendProgress,
       );
 
-      debugPrint('✅ [FAYL YÜKLƏNDİ]: ${response.statusCode} - ${response.data}');
+      if (kDebugMode) {
+        debugPrint('✅ [FAYL YÜKLƏNDİ]: ${response.statusCode}');
+      }
       return FileUploadResponse.fromResponse(response);
     } on DioException catch (e) {
-      debugPrint('❌ [FAYL YÜKLƏNMƏ XƏTASI]: ${e.response?.statusCode} - ${e.response?.data}');
+      if (kDebugMode) {
+        debugPrint('❌ [FAYL YÜKLƏNMƏ XƏTASI]: status=${e.response?.statusCode}');
+      }
       if (e.response != null) {
         return FileUploadResponse.fromResponse(e.response!);
       }
@@ -368,7 +374,6 @@ class FileService {
     ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      debugPrint('📥 [FAYL ENDİRİLİR (BYTES)]: $attachId');
       final response = await _client.dio.get<List<int>>(
         ApiEndpoints.fileDownload(attachId),
         options: Options(responseType: ResponseType.bytes),
@@ -376,7 +381,6 @@ class FileService {
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        debugPrint('✅ [FAYL ENDİRİLDİ]: ${response.data!.length} bytes');
         return response.data;
       }
       return null;
@@ -393,7 +397,6 @@ class FileService {
     ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      debugPrint('📥 [FAYL ENDİRİLİR (SAVE_PATH)]: $attachId -> $savePath');
       final response = await _client.dio.download(
         ApiEndpoints.fileDownload(attachId),
         savePath,

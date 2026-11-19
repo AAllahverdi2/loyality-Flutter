@@ -103,13 +103,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final deviceId = await DeviceHelper.getDeviceId();
       final deviceName = await DeviceHelper.getDeviceName();
 
-      debugPrint('==============================================');
-      debugPrint('🔑 [LOGIN REQUEST GÖNDƏRİLİR]');
-      debugPrint('📧 Email       : $email');
-      debugPrint('🆔 Device ID   : $deviceId');
-      debugPrint('📛 Device Name : $deviceName');
-      debugPrint('==============================================');
-
       await _authService.loginWithFields(
         email: email,
         password: password,

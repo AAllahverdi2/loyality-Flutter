@@ -90,16 +90,14 @@ class SupportChatService {
           'attachmentFileId': attachmentFileId.trim(),
       };
 
-      debugPrint('📤 [SUPPORT_CHAT CREATE REQ]: $payload');
-
       final response = await _client.post(
         ApiEndpoints.supportConversationsCreate,
         data: payload,
       );
 
-      debugPrint(
-        '📦 [SUPPORT_CHAT CREATE RES]: ${response.statusCode} | data=${response.data}',
-      );
+      if (kDebugMode) {
+        debugPrint('📦 [SUPPORT_CHAT CREATE RES]: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
@@ -237,8 +235,6 @@ class SupportChatService {
         queryParameters: {'languageCode': lang},
       );
 
-      debugPrint('📦 [SUPPORT_CHAT MY RES]: ${response.statusCode}');
-
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
         List<dynamic> list = [];
@@ -282,8 +278,6 @@ class SupportChatService {
         queryParameters: {'languageCode': lang},
       );
 
-      debugPrint('📦 [SUPPORT_CHAT MY BY ID RES]: ${response.statusCode}');
-
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
         Map<String, dynamic> itemMap = {};
@@ -324,16 +318,14 @@ class SupportChatService {
           'attachmentFileId': attachmentFileId.trim(),
       };
 
-      debugPrint('📤 [SUPPORT_CHAT SEND REST REQ]: $payload');
-
       final response = await _client.post(
         ApiEndpoints.supportConversationsMyMessages(conversationId),
         data: payload,
       );
 
-      debugPrint(
-        '📦 [SUPPORT_CHAT SEND REST RES]: ${response.statusCode} | data=${response.data}',
-      );
+      if (kDebugMode) {
+        debugPrint('📦 [SUPPORT_CHAT SEND REST RES]: ${response.statusCode}');
+      }
 
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           response.data != null) {
@@ -401,14 +393,12 @@ class SupportChatService {
   /// POST /api/SupportConversations/my/{conversationId}/messages/seen (body: {})
   Future<bool> markMessagesSeen(String conversationId) async {
     try {
-      debugPrint('👀 [SUPPORT_CHAT MARK SEEN REQ]: convId=$conversationId');
       final response = await _client.post(
         ApiEndpoints.supportConversationsMyMessagesSeen(conversationId),
         data: const <String, dynamic>{},
       );
 
       final statusCode = response.statusCode ?? 0;
-      debugPrint('👀 [SUPPORT_CHAT MARK SEEN RES]: $statusCode');
       return statusCode >= 200 && statusCode < 300;
     } catch (e) {
       debugPrint('⚠️ [SUPPORT_CHAT MARK SEEN XƏTASI]: $e');

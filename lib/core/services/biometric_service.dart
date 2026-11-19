@@ -51,6 +51,7 @@ class BiometricService {
 
   /// Cihazın biometrik sensoru (Face ID / Barmaq izi) dəstəkləyib-dəstəkləmədiyini yoxlayır
   Future<bool> isDeviceSupported() async {
+    if (kIsWeb) return false;
     try {
       final isSupported = await _localAuth.isDeviceSupported();
       final canCheck = await _localAuth.canCheckBiometrics;
@@ -63,6 +64,7 @@ class BiometricService {
 
   /// Cihazın biometrika yoxlamağa qadir olub-olmadığını yoxlayır
   Future<bool> canCheckBiometrics() async {
+    if (kIsWeb) return false;
     try {
       return await _localAuth.canCheckBiometrics;
     } catch (e) {
@@ -73,6 +75,7 @@ class BiometricService {
 
   /// Cihazda qeydiyyatdan keçmiş biometrika növlərini gətirir
   Future<List<BiometricType>> getAvailableBiometrics() async {
+    if (kIsWeb) return const [];
     try {
       return await _localAuth.getAvailableBiometrics();
     } catch (e) {
@@ -83,6 +86,7 @@ class BiometricService {
 
   /// Cihazda ən azı bir barmaq izi və ya Face ID qeydiyyatdan keçibmi?
   Future<bool> hasEnrolledBiometrics() async {
+    if (kIsWeb) return false;
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
       if (!canCheck) return false;
@@ -96,6 +100,7 @@ class BiometricService {
 
   /// Həm sensor var, həm də istifadəçi biometrika qeyd edib
   Future<bool> canUseBiometrics() async {
+    if (kIsWeb) return false;
     final supported = await isDeviceSupported();
     if (!supported) return false;
     return await hasEnrolledBiometrics();
@@ -103,6 +108,7 @@ class BiometricService {
 
   /// İstifadəçi interfeysi üçün biometrika növünün adı (məs. "Face ID" və ya "Barmaq izi")
   Future<String> getBiometricDisplayName() async {
+    if (kIsWeb) return 'Biometrik giriş';
     try {
       final biometrics = await getAvailableBiometrics();
       if (!kIsWeb && Platform.isIOS) {
@@ -147,6 +153,13 @@ class BiometricService {
     required String localizedReason,
     bool biometricOnly = true,
   }) async {
+    if (kIsWeb) {
+      return const BiometricAuthResult(
+        status: BiometricAuthStatus.notAvailable,
+        errorMessage: 'Cihazınızda biometrik sensor mövcud deyil.',
+      );
+    }
+
     if (_isAuthenticating) {
       return const BiometricAuthResult(
         status: BiometricAuthStatus.canceled,
@@ -275,6 +288,10 @@ class BiometricService {
 
   /// Davam edən identifikasiyanı dayandırmaq
   Future<void> cancelAuthentication() async {
+    if (kIsWeb) {
+      _isAuthenticating = false;
+      return;
+    }
     try {
       if (_isAuthenticating) {
         await _localAuth.stopAuthentication();

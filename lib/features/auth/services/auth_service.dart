@@ -73,14 +73,14 @@ class AuthService {
       TokenStorage.setHasPinCode(hasPin);
 
       if (token != null && token.isNotEmpty) {
-        debugPrint(
-          '🔐 [TOKEN YADDAŞA YAZILDI]: ${token.substring(0, token.length > 15 ? 15 : token.length)}... (hasPinCode: $hasPin)',
-        );
+        if (kDebugMode) {
+          debugPrint('🔐 [TOKEN YADDAŞA YAZILDI]: hasPinCode=$hasPin');
+        }
         _client.setTokens(accessToken: token, refreshToken: refreshToken);
       } else {
-        debugPrint(
-          '⚠️ [DİQQƏT]: Cavabda heç bir token tapılmadı! Data: $responseData',
-        );
+        if (kDebugMode) {
+          debugPrint('⚠️ [DİQQƏT]: Cavabda token tapılmadı.');
+        }
       }
     }
     return hasPin;
@@ -150,15 +150,6 @@ class AuthService {
     // 2. Mövcud real cihaz məlumatları
     final deviceId = await DeviceHelper.getDeviceId();
     final deviceName = await DeviceHelper.getDeviceName();
-
-    debugPrint('==============================================');
-    debugPrint('🔑 [POST /api/Auth/google-login GÖNDƏRİLİR]');
-    debugPrint('🆔 Device ID   : $deviceId');
-    debugPrint('📛 Device Name : $deviceName');
-    debugPrint(
-      '🎟️ idToken     : ${idToken.substring(0, idToken.length > 25 ? 25 : idToken.length)}...',
-    );
-    debugPrint('==============================================');
 
     // 3. Backend-ə göndərilir və tokenlər avtomatik yaddaşa yazılır
     return await loginWithGoogle(
@@ -293,20 +284,20 @@ class AuthService {
       final refreshToken =
           _client.refreshToken ?? await TokenStorage.getRefreshToken() ?? '';
 
-      debugPrint('🚪 [LOGOUT GÖNDƏRİLİR]');
       await _client.post(
         ApiEndpoints.logout,
         data: LogoutRequest(refreshToken: refreshToken).toJson(),
       );
     } catch (e) {
-      debugPrint('⚠️ [LOGOUT API XƏTASI]: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ [LOGOUT API XƏTASI]: ${e.runtimeType}');
+      }
     } finally {
       await SupportChatHubService.instance.stop();
       await _resetUserCaches();
       await GoogleAuthService.signOut();
       _client.clearAuthToken();
       await TokenStorage.clearTokens();
-      debugPrint('✅ [İSTİFADƏÇİ SESSIYASI TƏMİZLƏNDİ]');
     }
   }
 }

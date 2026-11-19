@@ -115,10 +115,6 @@ class SupportConversationsStore extends ChangeNotifier {
 
   void _handleIncomingMessage(SupportChatMessage msg) {
     final convId = msg.conversationId?.trim();
-    debugPrint(
-      '🔔 [GLOBAL CHAT ReceiveMessage]: convId=$convId, msgId=${msg.id}, '
-      'isUser=${msg.isUser}, content=${msg.content}',
-    );
 
     if (convId == null || convId.isEmpty) {
       unawaited(refreshConversations(silent: true));

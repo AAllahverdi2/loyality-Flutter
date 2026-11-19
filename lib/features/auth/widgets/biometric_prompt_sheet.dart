@@ -19,26 +19,15 @@ class BiometricPromptSheet extends StatefulWidget {
       final isEnabled = await biometricService.isBiometricEnabled();
       final hasPrompted = await biometricService.hasPromptedBiometric();
 
-      debugPrint('==================================================');
-      debugPrint('🔍 [BIOMETRIC PROMPT CHECK]:');
-      debugPrint('   isDeviceSupported  : $isSupported');
-      debugPrint('   canCheckBiometrics : $canCheck');
-      debugPrint('   isBiometricEnabled : $isEnabled');
-      debugPrint('   hasPrompted        : $hasPrompted');
-      debugPrint('==================================================');
-
       if (!isSupported && !canCheck) {
-        debugPrint('⚠️ [BiometricPromptSheet] Cihaz biometrika dəstəkləmir.');
         return;
       }
 
       if (isEnabled) {
-        debugPrint('ℹ️ [BiometricPromptSheet] Biometrika artıq aktivdir.');
         return;
       }
 
       if (hasPrompted) {
-        debugPrint('ℹ️ [BiometricPromptSheet] Artıq sorğu verilib.');
         return;
       }
 

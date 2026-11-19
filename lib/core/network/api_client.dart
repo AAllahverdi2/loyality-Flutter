@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
@@ -49,11 +50,6 @@ class ApiClient {
               token = token.substring(7).trim();
             }
             options.headers['Authorization'] = 'Bearer $token';
-            debugPrint(
-                '🔑 [AUTHORIZATION HEADER]: Bearer ${token.substring(0, token.length > 25 ? 25 : token.length)}...');
-          } else {
-            debugPrint(
-                '⚠️ [TOKEN YOXDUR]: ${options.path} üçün Access Token tapılmadı (İstifadəçi daxil olmayıb və ya çıxış edib)');
           }
           return handler.next(options);
         },
@@ -72,9 +68,9 @@ class ApiClient {
 
           // 401 Unauthorized: Access Token-in vaxtı bitdikdə və ya etibarsız olduqda
           if (error.response?.statusCode == 401) {
-            debugPrint('🚨 [401 UNAUTHORIZED]: ${error.requestOptions.path}');
-            debugPrint('   Headers: ${error.requestOptions.headers}');
-            debugPrint('   Response Data: ${error.response?.data}');
+            if (kDebugMode) {
+              debugPrint('🚨 [401 UNAUTHORIZED]: ${error.requestOptions.path}');
+            }
 
             // Əgər sorğu artıq bir dəfə təkrar olunubsa və yenə 401 alıbsa, Login-ə yönləndiririk
             if (error.requestOptions.extra['retried'] == true) {
@@ -90,7 +86,9 @@ class ApiClient {
 
             // Əgər refresh token endpoint-i özü 401 alıbsa, dərhal Login-ə atırıq
             if (path.contains(ApiEndpoints.refreshToken) || path.contains('/refreshToken')) {
-              debugPrint('🚨 [REFRESH TOKEN İSTİFADƏ MÜDDƏTİ BİTİB (401) - LOGIN-Ə YÖNLƏNDİRİLİR]');
+              if (kDebugMode) {
+                debugPrint('🚨 [REFRESH TOKEN İSTİFADƏ MÜDDƏTİ BİTİB (401)]');
+              }
               _handleAuthFailure();
               return handler.next(error);
             }
@@ -99,12 +97,16 @@ class ApiClient {
             if (!isAuthEndpoint) {
               // Əgər əlimizdə heç Refresh Token yoxdursa, birbaşa Login-ə atırıq
               if (_refreshToken == null || _refreshToken!.trim().isEmpty) {
-                debugPrint('⚠️ [REFRESH TOKEN YOXDUR - LOGIN-Ə YÖNLƏNDİRİLİR]');
+                if (kDebugMode) {
+                  debugPrint('⚠️ [REFRESH TOKEN YOXDUR - LOGIN-Ə YÖNLƏNDİRİLİR]');
+                }
                 _handleAuthFailure();
                 return handler.next(error);
               }
 
-              debugPrint('🔄 [ACCESS TOKEN BİTİB (401) - REFRESH TOKEN İŞƏ DÜŞÜR]');
+              if (kDebugMode) {
+                debugPrint('🔄 [ACCESS TOKEN BİTİB (401) - REFRESH TOKEN İŞƏ DÜŞÜR]');
+              }
 
               final refreshed = await _refreshAccessToken();
               if (refreshed && _accessToken != null && _accessToken!.trim().isNotEmpty) {
@@ -139,18 +141,6 @@ class ApiClient {
           }
           return handler.next(error);
         },
-      ),
-    );
-
-    // 2. Logging Interceptor (Bütün başlıqlar konsolda görünür)
-    _dio.interceptors.add(
-      LogInterceptor(
-        request: true,
-        requestHeader: true,
-        requestBody: true,
-        responseHeader: false,
-        responseBody: true,
-        error: true,
       ),
     );
 
@@ -322,7 +312,9 @@ class ApiClient {
                 response.data['hasPinCode']?.toString().toLowerCase() == 'true';
             TokenStorage.setHasPinCode(hasPin);
           }
-          debugPrint('✅ [TOKEN UĞURLA YENİLƏNDİ!]');
+          if (kDebugMode) {
+            debugPrint('✅ [TOKEN UĞURLA YENİLƏNDİ!]');
+          }
           _refreshCompleter?.complete(true);
           return true;
         }
@@ -331,7 +323,12 @@ class ApiClient {
       _refreshCompleter?.complete(false);
       return false;
     } catch (e) {
-      debugPrint('❌ [REFRESH TOKEN XƏTASI]: $e');
+      if (kDebugMode) {
+        final detail = e is DioException
+            ? (e.response?.statusCode?.toString() ?? e.type.name)
+            : e.runtimeType.toString();
+        debugPrint('❌ [REFRESH TOKEN XƏTASI]: $detail');
+      }
       _lastRefreshWasNetworkError = NetworkMonitor.isNetworkError(e);
       _refreshCompleter?.complete(false);
       return false;

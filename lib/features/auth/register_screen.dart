@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
-import 'package:loyallig_flutter/core/utils/device_helper.dart';
 import 'package:loyallig_flutter/core/widgets/custom_input.dart';
 import 'package:loyallig_flutter/features/auth/login_screen.dart';
 import 'package:loyallig_flutter/features/auth/models/send_register_code_request.dart';
@@ -42,7 +41,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _logDeviceInfo();
     _emailController.addListener(_clearError);
     _firstNameController.addListener(_clearError);
     _lastNameController.addListener(_clearError);
@@ -70,16 +68,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
-
-  Future<void> _logDeviceInfo() async {
-    final id = await DeviceHelper.getDeviceId();
-    final name = await DeviceHelper.getDeviceName();
-    debugPrint('==============================================');
-    debugPrint('📱 [DEVICE INFO]');
-    debugPrint('🆔 Device ID   : $id');
-    debugPrint('📛 Device Name : $name');
-    debugPrint('==============================================');
   }
 
   @override
@@ -178,12 +166,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      debugPrint('==============================================');
-      debugPrint('🚀 [SEND REGISTER CODE GÖNDƏRİLİR]');
-      debugPrint('📧 Email       : $email');
-      debugPrint('👤 Ad Soyad    : $firstName $lastName');
-      debugPrint('==============================================');
-
       final registerData = SendRegisterCodeRequest(
         email: email,
         firstName: firstName,

@@ -24,7 +24,9 @@ class PinCodeService {
         },
       );
 
-      debugPrint('📦 [SET_PIN_CODE CAVABI]: ${response.statusCode} - ${response.data}');
+      if (kDebugMode) {
+        debugPrint('📦 [SET_PIN_CODE]: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
@@ -39,7 +41,9 @@ class PinCodeService {
       }
       return false;
     } on DioException catch (e) {
-      debugPrint('❌ [SET_PIN_CODE DIO XƏTASI]: ${e.response?.data}');
+      if (kDebugMode) {
+        debugPrint('❌ [SET_PIN_CODE DIO XƏTASI]: status=${e.response?.statusCode}');
+      }
       String errorMsg = 'PIN kod təyin edilərkən xəta baş verdi.';
       if (e.response?.data != null && e.response?.data is Map) {
         errorMsg = e.response?.data['errorMessage']?.toString() ??
@@ -48,7 +52,9 @@ class PinCodeService {
       }
       throw Exception(errorMsg);
     } catch (e) {
-      debugPrint('❌ [SET_PIN_CODE XƏTA]: $e');
+      if (kDebugMode) {
+        debugPrint('❌ [SET_PIN_CODE XƏTA]: $e');
+      }
       rethrow;
     }
   }
@@ -63,7 +69,9 @@ class PinCodeService {
         },
       );
 
-      debugPrint('📦 [VERIFY_PIN_CODE CAVABI]: ${response.statusCode} - ${response.data}');
+      if (kDebugMode) {
+        debugPrint('📦 [VERIFY_PIN_CODE]: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -79,7 +87,9 @@ class PinCodeService {
       }
       return false;
     } on DioException catch (e) {
-      debugPrint('❌ [VERIFY_PIN_CODE DIO XƏTASI]: ${e.response?.data}');
+      if (kDebugMode) {
+        debugPrint('❌ [VERIFY_PIN_CODE DIO XƏTASI]: status=${e.response?.statusCode}');
+      }
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
         // İnternet problemi olarsa yerli yaddaşla ehtiyat yoxlama
@@ -97,7 +107,9 @@ class PinCodeService {
       }
       throw Exception(errorMsg);
     } catch (e) {
-      debugPrint('❌ [VERIFY_PIN_CODE XƏTA]: $e');
+      if (kDebugMode) {
+        debugPrint('❌ [VERIFY_PIN_CODE XƏTA]: $e');
+      }
       rethrow;
     }
   }
