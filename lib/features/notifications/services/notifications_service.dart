@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
 import 'package:loyallig_flutter/features/notifications/models/notification_item.dart';
@@ -153,5 +155,82 @@ class NotificationsService {
     );
     final code = response.statusCode ?? 0;
     return code >= 200 && code < 300;
+  }
+
+  bool _isSuccessResponse(Response<dynamic> response) {
+    final code = response.statusCode ?? 0;
+    if (code < 200 || code >= 300) return false;
+    final data = response.data;
+    if (data is Map && data['isSuccess'] == false) {
+      return false;
+    }
+    return true;
+  }
+
+  /// POST /api/Notifications/device-token
+  Future<bool> registerDeviceToken({
+    required String fcmToken,
+    required String deviceId,
+    required String platform,
+  }) async {
+    final response = await _client.post(
+      ApiEndpoints.notificationsDeviceToken,
+      data: {
+        'fcmToken': fcmToken,
+        'deviceId': deviceId,
+        'platform': platform,
+      },
+    );
+    final ok = _isSuccessResponse(response);
+    if (kDebugMode) {
+      debugPrint(
+        '📲 [PUSH_API] POST device-token status=${response.statusCode} ok=$ok platform=$platform deviceId=$deviceId data=${response.data}',
+      );
+    }
+    return ok;
+  }
+
+  /// DELETE /api/Notifications/device-token?deviceId={deviceId}
+  Future<bool> unregisterDeviceToken({
+    required String deviceId,
+    String? fcmToken,
+  }) async {
+    final response = await _client.delete(
+      ApiEndpoints.notificationsDeviceToken,
+      queryParameters: {'deviceId': deviceId},
+      data: {
+        'deviceId': deviceId,
+        if (fcmToken != null && fcmToken.trim().isNotEmpty)
+          'fcmToken': fcmToken.trim(),
+      },
+    );
+    final ok = _isSuccessResponse(response);
+    if (kDebugMode) {
+      debugPrint(
+        '📲 [PUSH_API] DELETE device-token status=${response.statusCode} ok=$ok deviceId=$deviceId',
+      );
+    }
+    return ok;
+  }
+
+  /// POST /api/Notifications/preferences
+  Future<bool> updatePreferences({
+    required String deviceId,
+    required bool enabled,
+  }) async {
+    final response = await _client.post(
+      ApiEndpoints.notificationsPreferences,
+      data: {
+        'deviceId': deviceId,
+        'enabled': enabled,
+      },
+    );
+    final ok = _isSuccessResponse(response);
+    if (kDebugMode) {
+      debugPrint(
+        '📲 [PUSH_API] POST preferences status=${response.statusCode} ok=$ok enabled=$enabled deviceId=$deviceId data=${response.data}',
+      );
+    }
+    return ok;
   }
 }

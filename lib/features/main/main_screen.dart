@@ -11,6 +11,7 @@ import 'package:loyallig_flutter/features/favorites/favorites_screen.dart';
 import 'package:loyallig_flutter/features/history/history_screen.dart';
 import 'package:loyallig_flutter/features/home/home_screen.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
+import 'package:loyallig_flutter/features/notifications/services/push_notification_service.dart';
 import 'package:loyallig_flutter/features/notifications/widgets/notification_permission_sheet.dart';
 import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
 import 'package:loyallig_flutter/features/profile/profile_screen.dart';
@@ -101,6 +102,9 @@ class _MainScreenState extends State<MainScreen>
           .handleFirstLoginNotificationPermission();
       if (needsFallbackSheet && mounted) {
         await NotificationPermissionSheet.show(context);
+      }
+      if (mounted) {
+        PushNotificationService.instance.consumePendingNavigation(context);
       }
     });
   }

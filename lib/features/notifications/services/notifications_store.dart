@@ -9,6 +9,7 @@ import 'package:loyallig_flutter/features/notifications/models/notification_item
 import 'package:loyallig_flutter/features/notifications/services/notification_permission_service.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_hub_service.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_service.dart';
+import 'package:loyallig_flutter/features/notifications/services/push_notification_service.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 
 enum NotificationToggleOutcome {
@@ -146,6 +147,7 @@ class NotificationsStore extends ChangeNotifier {
   }
 
   Future<void> refreshNotificationPermissionStatus() async {
+    final previousEffective = isNotificationsEnabled;
     final status = await _permissionService.checkPermissionStatus();
     var changed = _permissionStatus != status;
     _permissionStatus = status;
@@ -170,9 +172,18 @@ class NotificationsStore extends ChangeNotifier {
     if (changed) {
       notifyListeners();
     }
+    if (previousEffective != isNotificationsEnabled) {
+      unawaited(
+        PushNotificationService.instance.syncSessionPushSettings(
+          enabled: isNotificationsEnabled,
+          force: true,
+        ),
+      );
+    }
   }
 
   Future<bool> handleFirstLoginNotificationPermission() async {
+    final previousEffective = isNotificationsEnabled;
     final result = await _permissionService
         .requestPermissionOnFirstLoginIfNeeded();
     if (!_preferencesLoaded) {
@@ -184,6 +195,15 @@ class NotificationsStore extends ChangeNotifier {
       _permissionStatus = result.status;
       notifyListeners();
     }
+    if (previousEffective != isNotificationsEnabled ||
+        result.status == NotificationPermissionStatus.granted) {
+      unawaited(
+        PushNotificationService.instance.syncSessionPushSettings(
+          enabled: isNotificationsEnabled,
+          force: true,
+        ),
+      );
+    }
     return result.needsFallbackSheet;
   }
 
@@ -193,6 +213,12 @@ class NotificationsStore extends ChangeNotifier {
       _localNotificationsEnabled = false;
       await _permissionService.setLocalNotificationsEnabled(false);
       notifyListeners();
+      unawaited(
+        PushNotificationService.instance.syncPreferences(
+          enabled: false,
+          force: true,
+        ),
+      );
       return NotificationToggleOutcome.disabled;
     }
 
@@ -205,6 +231,12 @@ class NotificationsStore extends ChangeNotifier {
       _localNotificationsEnabled = true;
       await _permissionService.setLocalNotificationsEnabled(true);
       notifyListeners();
+      unawaited(
+        PushNotificationService.instance.syncSessionPushSettings(
+          enabled: true,
+          force: true,
+        ),
+      );
       return NotificationToggleOutcome.enabled;
     }
 
@@ -216,6 +248,12 @@ class NotificationsStore extends ChangeNotifier {
         _localNotificationsEnabled = true;
         await _permissionService.setLocalNotificationsEnabled(true);
         notifyListeners();
+        unawaited(
+          PushNotificationService.instance.syncSessionPushSettings(
+            enabled: true,
+            force: true,
+          ),
+        );
         return NotificationToggleOutcome.enabled;
       }
 
@@ -249,6 +287,11 @@ class NotificationsStore extends ChangeNotifier {
       await initPreferences();
     }
     if (!await _hasSession()) return;
+    unawaited(
+      PushNotificationService.instance.syncSessionPushSettings(
+        enabled: isNotificationsEnabled,
+      ),
+    );
     await refreshUnreadCount();
     if (!_hubService.isConnected) {
       await _hubService.initAndConnect();
@@ -557,6 +600,7 @@ class NotificationsStore extends ChangeNotifier {
     _initFuture = null;
     _unreadFuture = null;
     _awaitingSettingsReturn = false;
+    PushNotificationService.instance.resetSessionCache();
     notifyListeners();
   }
 }

@@ -100,5 +100,9 @@ class ApiEndpoints {
   static String notificationMarkRead(String id) =>
       '/api/Notifications/$id/read';
   static const String notificationsReadAll = '/api/Notifications/read-all';
+  static const String notificationsDeviceToken =
+      '/api/Notifications/device-token';
+  static const String notificationsPreferences =
+      '/api/Notifications/preferences';
   static String get notificationsHub => '$baseUrl/hubs/notifications';
 }

@@ -11,6 +11,7 @@ import 'package:loyallig_flutter/core/widgets/network_error_view.dart';
 import 'package:loyallig_flutter/features/auth/biometric_lock_screen.dart';
 import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
+import 'package:loyallig_flutter/features/notifications/services/push_notification_service.dart';
 import 'package:loyallig_flutter/features/notifications/widgets/in_app_notification_overlay.dart';
 import 'package:loyallig_flutter/features/splash/splash_screen.dart';
 
@@ -21,6 +22,7 @@ void main() async {
   await AppLocalizations.init();
   await AppTheme.init();
   await NotificationsStore.instance.initPreferences();
+  await PushNotificationService.instance.init();
   runApp(const MainApp());
 }
 

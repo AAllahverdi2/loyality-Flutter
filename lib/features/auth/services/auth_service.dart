@@ -26,6 +26,7 @@ import 'package:loyallig_flutter/features/history/services/transaction_service.d
 import 'package:loyallig_flutter/features/history/services/wallet_service.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_hub_service.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
+import 'package:loyallig_flutter/features/notifications/services/push_notification_service.dart';
 import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
@@ -114,6 +115,12 @@ class AuthService {
     _extractAndSaveTokens(response.data);
     unawaited(SupportConversationsStore.instance.initGlobalSession());
     unawaited(NotificationsStore.instance.initGlobalSession());
+    unawaited(
+      PushNotificationService.instance.syncSessionPushSettings(
+        enabled: NotificationsStore.instance.isNotificationsEnabled,
+        force: true,
+      ),
+    );
     return response;
   }
 
@@ -355,6 +362,7 @@ class AuthService {
         debugPrint('⚠️ [LOGOUT API XƏTASI]: ${e.runtimeType}');
       }
     } finally {
+      await PushNotificationService.instance.unregisterDeviceToken();
       await SupportChatHubService.instance.stop();
       await NotificationsHubService.instance.stop();
       await _resetUserCaches();
