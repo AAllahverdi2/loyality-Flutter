@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:loyallig_flutter/core/constants/app_colors.dart';
@@ -8,6 +9,7 @@ class SocialAuthSection extends StatelessWidget {
     this.onGoogleTap,
     this.onAppleTap,
     this.isGoogleLoading = false,
+    this.isAppleLoading = false,
     this.dividerText,
     super.key,
   });
@@ -15,12 +17,16 @@ class SocialAuthSection extends StatelessWidget {
   final VoidCallback? onGoogleTap;
   final VoidCallback? onAppleTap;
   final bool isGoogleLoading;
+  final bool isAppleLoading;
   final String? dividerText;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isAndroid = Theme.of(context).platform == TargetPlatform.android;
+    final platform = Theme.of(context).platform;
+    final isAndroid = platform == TargetPlatform.android;
+    final showAppleButton =
+        !kIsWeb && (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS);
     final dividerColor =
         isDark ? const Color(0xFF27272A) : const Color(0xFFE5E7EB);
     final text = dividerText ?? tr('auth_or_login');
@@ -76,12 +82,13 @@ class SocialAuthSection extends StatelessWidget {
                 ),
               ),
             ),
-            if (!isAndroid) ...[
+            if (showAppleButton) ...[
               const SizedBox(width: 16),
               Expanded(
                 child: _SocialButton(
                   semanticLabel: 'Apple ilə daxil ol',
                   onTap: onAppleTap,
+                  isLoading: isAppleLoading,
                   child: Icon(
                     Icons.apple,
                     size: 26,

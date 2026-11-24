@@ -10,6 +10,8 @@ import 'package:loyallig_flutter/features/chat/services/support_conversations_st
 import 'package:loyallig_flutter/features/favorites/favorites_screen.dart';
 import 'package:loyallig_flutter/features/history/history_screen.dart';
 import 'package:loyallig_flutter/features/home/home_screen.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
+import 'package:loyallig_flutter/features/notifications/widgets/notification_permission_sheet.dart';
 import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
 import 'package:loyallig_flutter/features/profile/profile_screen.dart';
 
@@ -62,6 +64,7 @@ class _MainScreenState extends State<MainScreen>
     _loadedTabs.add(0); // Home hər zaman yüklənir
     _loadedTabs.add(_currentIndex);
     unawaited(SupportConversationsStore.instance.initGlobalSession());
+    unawaited(NotificationsStore.instance.initGlobalSession());
 
     _animController = AnimationController(
       vsync: this,
@@ -88,9 +91,16 @@ class _MainScreenState extends State<MainScreen>
 
     _slideAnimation = const AlwaysStoppedAnimation<double>(0.0);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        BiometricPromptSheet.showIfEligible(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await BiometricPromptSheet.showIfEligible(context);
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      final needsFallbackSheet = await NotificationsStore.instance
+          .handleFirstLoginNotificationPermission();
+      if (needsFallbackSheet && mounted) {
+        await NotificationPermissionSheet.show(context);
       }
     });
   }

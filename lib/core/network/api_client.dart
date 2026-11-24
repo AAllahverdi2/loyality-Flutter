@@ -13,6 +13,8 @@ import 'package:loyallig_flutter/features/chat/services/support_conversations_st
 import 'package:loyallig_flutter/features/discounts/services/discounts_service.dart';
 import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
 import 'package:loyallig_flutter/features/history/services/wallet_service.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_hub_service.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
 import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 import 'package:loyallig_flutter/main.dart';
@@ -212,7 +214,9 @@ class ApiClient {
   static void redirectToLogin() {
     instance.clearAuthToken();
     unawaited(SupportChatHubService.instance.stop());
+    unawaited(NotificationsHubService.instance.stop());
     SupportConversationsStore.instance.clear();
+    NotificationsStore.instance.clear();
 
     final now = DateTime.now();
     if (_lastRedirectTime != null &&
@@ -315,6 +319,11 @@ class ApiClient {
           if (kDebugMode) {
             debugPrint('✅ [TOKEN UĞURLA YENİLƏNDİ!]');
           }
+          Future<void>.microtask(() {
+            if (!NotificationsHubService.instance.isConnected) {
+              NotificationsHubService.instance.initAndConnect();
+            }
+          });
           _refreshCompleter?.complete(true);
           return true;
         }

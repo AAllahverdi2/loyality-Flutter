@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/network_monitor.dart';
 import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/features/notifications/notifications_screen.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
 import 'package:loyallig_flutter/features/profile/widgets/language_bottom_sheet.dart';
 import 'package:loyallig_flutter/features/profile/widgets/profile_header.dart';
 import 'package:loyallig_flutter/features/profile/widgets/profile_item.dart';
@@ -39,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     NetworkMonitor.instance.reconnectNotifier.addListener(_onReconnected);
+    unawaited(NotificationsStore.instance.refreshNotificationPermissionStatus());
     _loadProfile();
   }
 
@@ -113,6 +117,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleNotificationSwitchChange(bool value) async {
+    final outcome = await NotificationsStore.instance.toggleNotifications(value);
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    switch (outcome) {
+      case NotificationToggleOutcome.enabled:
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(tr('notifications_enabled_msg')),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      case NotificationToggleOutcome.disabled:
+        if (!value) {
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(tr('notifications_disabled_msg')),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+        }
+      case NotificationToggleOutcome.settingsOpenFailed:
+        final isNative = NotificationsStore.instance.isNativeNotificationPlatform;
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                isNative
+                    ? tr('notifications_settings_open_failed')
+                    : tr('notifications_web_blocked_hint'),
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      case NotificationToggleOutcome.openedSystemSettings:
+        break;
+    }
   }
 
   String get _themeModeLabel => switch (_themeMode) {
@@ -195,15 +244,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ).then((_) => _loadProfile());
                     },
                   ),
-                  ProfileItem(
-                    icon: Icons.notifications_none_rounded,
-                    title: tr('profile_notifications'),
-                    showBadge: true,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        SmoothPageRoute<void>(
-                          builder: (_) => const NotificationsScreen(),
-                        ),
+                  ListenableBuilder(
+                    listenable: NotificationsStore.instance,
+                    builder: (context, _) {
+                      return ProfileItem(
+                        icon: Icons.notifications_none_rounded,
+                        title: tr('profile_notifications'),
+                        showBadge: NotificationsStore.instance.hasUnread,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            SmoothPageRoute<void>(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -240,6 +294,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           setState(() => _themeMode = mode);
                           AppTheme.setThemeMode(mode);
                         },
+                      );
+                    },
+                  ),
+                  ListenableBuilder(
+                    listenable: NotificationsStore.instance,
+                    builder: (context, _) {
+                      final notifStore = NotificationsStore.instance;
+                      final isDeniedAtOs =
+                          notifStore.isOsNotificationPermissionDenied;
+                      return ProfileItem(
+                        icon: Icons.notifications_active_outlined,
+                        title: tr('profile_notifications'),
+                        subtitle: isDeniedAtOs
+                            ? tr(
+                                notifStore.isNativeNotificationPlatform
+                                    ? 'notifications_system_disabled_hint'
+                                    : 'notifications_web_blocked_hint',
+                              )
+                            : null,
+                        isSwitch: true,
+                        switchValue: notifStore.isNotificationsEnabled,
+                        onSwitchChange: _handleNotificationSwitchChange,
                       );
                     },
                   ),

@@ -1,13 +1,14 @@
 class ApiEndpoints {
-//   static const String baseUrl = 'http://192.168.100.173';
-  static const String baseUrl = 'https://apiloyalty.azeraholding.az';
-//   static const String baseUrl = 'http://192.168.141.2';
+  static const String baseUrl = 'http://192.168.100.173';
+  // static const String baseUrl = 'https://apiloyalty.azeraholding.az';
+  // static const String baseUrl = 'http://192.168.141.2';
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
 
   static const String login = '/api/Auth/login';
   static const String googleLogin = '/api/Auth/google-login';
+  static const String appleLogin = '/api/auth/apple-login';
   static const String register = '/api/Auth/register';
   static const String sendRegisterCode = '/api/Auth/sendRegisterCode';
   static const String verifyRegisterCode = '/api/Auth/verifyRegisterCode';
@@ -90,4 +91,14 @@ class ApiEndpoints {
   static const String fileUpload = '/api/File/upload';
   static String fileDownload(String attachId) => '/api/File/download/$attachId';
   static String fileDelete(String id) => '/api/File/delete/$id';
+
+  // Notifications Endpoints & SignalR Hub
+  static const String notificationsList = '/api/Notifications';
+  static const String notificationsUnreadCount =
+      '/api/Notifications/unread-count';
+  static String notificationById(String id) => '/api/Notifications/$id';
+  static String notificationMarkRead(String id) =>
+      '/api/Notifications/$id/read';
+  static const String notificationsReadAll = '/api/Notifications/read-all';
+  static String get notificationsHub => '$baseUrl/hubs/notifications';
 }

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
 import 'package:loyallig_flutter/features/chat/models/support_chat_message.dart';
+import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 
 class OperatorTypingEvent {
@@ -24,19 +24,26 @@ class MessagesSeenEvent {
   final String? conversationId;
   final List<String> messageIds;
   final DateTime? seenAt;
+  final bool hasExplicitSeenAt;
 
   const MessagesSeenEvent({
     this.conversationId,
     required this.messageIds,
     this.seenAt,
+    this.hasExplicitSeenAt = false,
   });
 }
 
 class ConversationStatusEvent {
   final String? conversationId;
   final String status;
+  final String? statusName;
 
-  const ConversationStatusEvent({this.conversationId, required this.status});
+  const ConversationStatusEvent({
+    this.conversationId,
+    required this.status,
+    this.statusName,
+  });
 }
 
 class SupportChatHubService {
@@ -98,6 +105,8 @@ class SupportChatHubService {
         return (decoded['sub'] ??
                 decoded['nameid'] ??
                 decoded['userId'] ??
+                decoded['UserId'] ??
+                decoded['uid'] ??
                 decoded['id'] ??
                 decoded[
                     'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'])
@@ -105,6 +114,21 @@ class SupportChatHubService {
       }
     } catch (_) {}
     return null;
+  }
+
+  String _resolveUserId([String? explicit]) {
+    final candidates = <String?>[
+      explicit,
+      _currentUserId,
+      _extractUserIdFromJwt(ApiClient.instance.accessToken),
+      ProfileService.cachedProfile?.id,
+    ];
+    for (final c in candidates) {
+      if (c != null && c.trim().isNotEmpty) {
+        return c.trim();
+      }
+    }
+    return '';
   }
 
   bool _isBoolLike(dynamic val) {
@@ -144,7 +168,6 @@ class SupportChatHubService {
         initialToken = initialToken.substring(7).trim();
       }
       if (initialToken == null || initialToken.trim().isEmpty) {
-        debugPrint('⚠️ [SIGNALR] Token yoxdur, Hub qoşulması təxirə salındı.');
         completer.complete(false);
         return false;
       }
@@ -160,9 +183,6 @@ class SupportChatHubService {
       }
 
       final hubUrl = ApiEndpoints.supportChatHub;
-      if (kDebugMode) {
-        debugPrint('🔌 [SIGNALR] Hub-a qoşulur...');
-      }
 
       _hubConnection = HubConnectionBuilder()
           .withUrl(
@@ -185,16 +205,10 @@ class SupportChatHubService {
       _setupListeners();
 
       _hubConnection?.onreconnecting(({error}) {
-        if (kDebugMode) {
-          debugPrint('⚠️ [SIGNALR] Yenidən qoşulur: $error');
-        }
         _connectionStateController.add(HubConnectionState.Reconnecting);
       });
 
       _hubConnection?.onreconnected(({connectionId}) {
-        if (kDebugMode) {
-          debugPrint('🟢 [SIGNALR] Yenidən qoşuldu!');
-        }
         _connectionStateController.add(HubConnectionState.Connected);
         // Connection yenidən qurularsa JoinConversation(conversationId) təkrar çağırılır
         if (_activeConversationId != null) {
@@ -203,23 +217,14 @@ class SupportChatHubService {
       });
 
       _hubConnection?.onclose(({error}) {
-        if (kDebugMode) {
-          debugPrint('🔴 [SIGNALR] Bağlantı bağlandı: $error');
-        }
         _connectionStateController.add(HubConnectionState.Disconnected);
       });
 
       await _hubConnection?.start();
-      if (kDebugMode) {
-        debugPrint('✅ [SIGNALR] Uğurla qoşuldu! State: ${_hubConnection?.state}');
-      }
       _connectionStateController.add(HubConnectionState.Connected);
       completer.complete(true);
       return true;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ [SIGNALR] Qoşulma xətası: $e');
-      }
+    } catch (_) {
       _connectionStateController.add(HubConnectionState.Disconnected);
       completer.complete(false);
       return false;
@@ -359,9 +364,7 @@ class SupportChatHubService {
           isTyping: isTyping,
         ),
       );
-    } catch (e) {
-      debugPrint('❌ [SIGNALR $eventName Parsing Error]: $e');
-    }
+    } catch (_) {}
   }
 
   void _setupListeners() {
@@ -377,6 +380,9 @@ class SupportChatHubService {
           } else if (args.length >= 2 && args[1] is Map) {
             convIdFromArgs = args[0]?.toString();
             msgMap = Map<String, dynamic>.from(args[1] as Map);
+          } else if (args.length >= 3 && args[2] is Map) {
+            convIdFromArgs = args[0]?.toString();
+            msgMap = Map<String, dynamic>.from(args[2] as Map);
           }
 
           if (msgMap != null) {
@@ -406,9 +412,7 @@ class SupportChatHubService {
             _messageController.add(msg);
           }
         }
-      } catch (e) {
-        debugPrint('❌ [SIGNALR ReceiveMessage Parsing Error]: $e');
-      }
+      } catch (_) {}
     });
 
     // 2. Operator yazır: OperatorTyping(conversationId, operatorUserId, isTyping)
@@ -445,6 +449,13 @@ class SupportChatHubService {
         }
 
         List<String> extractIds(dynamic rawList) {
+          if (rawList is String && rawList.trim().isNotEmpty) {
+            return rawList
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toList();
+          }
           if (rawList is Iterable) {
             return rawList
                 .map((e) {
@@ -463,7 +474,14 @@ class SupportChatHubService {
           if (args[0] is Map) {
             final map = args[0] as Map;
             convId = map['conversationId']?.toString();
-            msgIds = extractIds(map['messageIds']);
+            msgIds = extractIds(
+              map['messageIds'] ??
+                  map['ids'] ??
+                  map['seenMessageIds'] ??
+                  map['readMessageIds'] ??
+                  map['messages'] ??
+                  map['messageId'],
+            );
             seenAt = parseSeenAt(map['seenAt'] ?? map['readAt']);
           } else if (args[0] is Iterable) {
             msgIds = extractIds(args[0]);
@@ -471,16 +489,42 @@ class SupportChatHubService {
               seenAt = parseSeenAt(args[1]);
             }
           } else {
-            // Backend standart: MessagesSeen(conversationId, messageIds, seenAt)
+            // Backend standart: (conversationId, messageIds, seenAt),
+            // (conversationId, customerUserId, messageIds, seenAt) və ya (convId, map)
             convId = args[0]?.toString();
-            if (args.length >= 2) {
-              msgIds = extractIds(args[1]);
+            for (int i = 1; i < args.length; i++) {
+              final arg = args[i];
+              if (arg is Map) {
+                convId ??= arg['conversationId']?.toString();
+                if (msgIds.isEmpty) {
+                  msgIds = extractIds(
+                    arg['messageIds'] ??
+                        arg['ids'] ??
+                        arg['seenMessageIds'] ??
+                        arg['readMessageIds'] ??
+                        arg['messages'] ??
+                        arg['messageId'],
+                  );
+                }
+                seenAt ??= parseSeenAt(arg['seenAt'] ?? arg['readAt']);
+              } else if (arg is Iterable) {
+                if (msgIds.isEmpty) {
+                  msgIds = extractIds(arg);
+                }
+              } else if (arg != null && msgIds.isNotEmpty) {
+                seenAt ??= parseSeenAt(arg);
+              }
             }
-            if (args.length >= 3) {
-              seenAt = parseSeenAt(args[2]);
+            if (seenAt == null && args.length >= 2) {
+              seenAt = parseSeenAt(args.last);
             }
           }
         }
+
+        final resolvedConvId =
+            (convId != null && convId.trim().isNotEmpty)
+            ? convId.trim()
+            : _activeConversationId;
 
         final effectiveSeenAt = seenAt ?? DateTime.now();
         for (final id in msgIds) {
@@ -489,26 +533,32 @@ class SupportChatHubService {
 
         _seenController.add(
           MessagesSeenEvent(
-            conversationId: convId ?? _activeConversationId,
+            conversationId: resolvedConvId,
             messageIds: msgIds,
             seenAt: effectiveSeenAt,
+            hasExplicitSeenAt: seenAt != null,
           ),
         );
-      } catch (e) {
-        debugPrint('❌ [SIGNALR MessagesSeen Parsing Error]: $e');
-      }
+      } catch (_) {}
     });
 
-    // 4. Söhbət Statusu Dəyişdi: ConversationStatusChanged(conversationId, status)
+    // 4. Söhbət Statusu Dəyişdi: ConversationStatusChanged(conversationId, status, statusName)
     _hubConnection?.on('ConversationStatusChanged', (List<dynamic>? args) {
       try {
         String status = '';
+        String? statusName;
         String? convId;
 
         if (args != null && args.isNotEmpty) {
-          if (args.length >= 2) {
+          if (args.length >= 2 && args[0] is! Map) {
             convId = args[0]?.toString();
             status = args[1]?.toString() ?? '';
+            if (args.length >= 3) {
+              final rawName = args[2]?.toString().trim();
+              if (rawName != null && rawName.isNotEmpty) {
+                statusName = rawName;
+              }
+            }
           } else if (args[0] is Map) {
             final map = args[0] as Map;
             convId = map['conversationId']?.toString();
@@ -516,6 +566,10 @@ class SupportChatHubService {
                 map['status']?.toString() ??
                 map['statusName']?.toString() ??
                 '';
+            final rawName = map['statusName']?.toString().trim();
+            if (rawName != null && rawName.isNotEmpty) {
+              statusName = rawName;
+            }
           } else {
             status = args[0]?.toString() ?? '';
           }
@@ -525,11 +579,10 @@ class SupportChatHubService {
           ConversationStatusEvent(
             conversationId: convId ?? _activeConversationId,
             status: status,
+            statusName: statusName,
           ),
         );
-      } catch (e) {
-        debugPrint('❌ [SIGNALR ConversationStatusChanged Parsing Error]: $e');
-      }
+      } catch (_) {}
     });
   }
 
@@ -542,11 +595,7 @@ class SupportChatHubService {
     }
     try {
       await _hubConnection?.invoke('JoinConversation', args: [conversationId]);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ [SIGNALR JoinConversation Error]: $e');
-      }
-    }
+    } catch (_) {}
   }
 
   /// 2. Söhbət otağından çıxmaq (LeaveConversation)
@@ -558,10 +607,7 @@ class SupportChatHubService {
           args: [conversationId],
         );
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ [SIGNALR LeaveConversation Error]: $e');
-      }
+    } catch (_) {
     } finally {
       if (_activeConversationId == conversationId) {
         _activeConversationId = null;
@@ -581,8 +627,183 @@ class SupportChatHubService {
         'SendTyping',
         args: [conversationId, isTyping],
       );
-    } catch (e) {
-      debugPrint('❌ [SIGNALR SendTyping Error]: $e');
+    } catch (_) {}
+  }
+
+  /// 4. REST ilə yaradılmış mesajı SignalR üzərindən operatorlara/otağa yaymaq
+  /// Hub metodu: BroadcastMessage(conversationId, customerUserId, message)
+  Future<bool> broadcastMessage({
+    required String conversationId,
+    String? customerUserId,
+    required Map<String, dynamic> messagePayload,
+  }) async {
+    if (!isConnected) {
+      final ok = await initAndConnect();
+      if (!ok || !isConnected) return false;
+    }
+
+    final convId = (messagePayload['conversationId'] ?? conversationId)
+        .toString()
+        .trim();
+    if (convId.isEmpty) return false;
+
+    final custId = _resolveUserId(
+      (customerUserId ??
+              messagePayload['customerUserId'] ??
+              messagePayload['userId'] ??
+              messagePayload['senderUserId'])
+          ?.toString(),
+    );
+
+    final payload = Map<String, dynamic>.from(messagePayload);
+    if ((payload['id'] == null || payload['id'].toString().trim().isEmpty) &&
+        payload['messageId'] != null) {
+      payload['id'] = payload['messageId'].toString();
+    } else if (payload['id'] != null) {
+      payload['id'] = payload['id'].toString();
+    }
+    payload['conversationId'] =
+        (payload['conversationId']?.toString().trim().isNotEmpty ?? false)
+        ? payload['conversationId'].toString().trim()
+        : convId;
+    if (custId.isNotEmpty &&
+        (payload['customerUserId'] == null ||
+            payload['customerUserId'].toString().trim().isEmpty)) {
+      payload['customerUserId'] = custId;
+    }
+    if (payload['createdDate'] is DateTime) {
+      payload['createdDate'] = (payload['createdDate'] as DateTime)
+          .toUtc()
+          .toIso8601String();
+    } else if (payload['createdDate'] == null ||
+        payload['createdDate'].toString().trim().isEmpty) {
+      payload['createdDate'] =
+          (payload['createdAt'] ?? payload['sentAt'])?.toString() ??
+          DateTime.now().toUtc().toIso8601String();
+    } else {
+      payload['createdDate'] = payload['createdDate'].toString();
+    }
+
+    try {
+      await _hubConnection?.invoke(
+        'BroadcastMessage',
+        args: <Object>[convId, custId, payload],
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 5. Mesajlar oxundu edildikdən sonra SignalR üzərindən qarşı tərəfə yaymaq
+  /// Hub metodu: BroadcastMessagesSeen(conversationId, customerUserId, messageIds, seenAt)
+  Future<bool> broadcastMessagesSeen({
+    required String conversationId,
+    String? customerUserId,
+    required List<dynamic> messageIds,
+    dynamic seenAt,
+  }) async {
+    final normalizedIds = messageIds
+        .map((e) => e?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (normalizedIds.isEmpty) return false;
+
+    if (!isConnected) {
+      final ok = await initAndConnect();
+      if (!ok || !isConnected) return false;
+    }
+
+    final convId = conversationId.trim();
+    if (convId.isEmpty) return false;
+
+    final custId = _resolveUserId(customerUserId);
+
+    final Object seenAtArg;
+    if (seenAt is DateTime) {
+      seenAtArg = seenAt.toUtc().toIso8601String();
+    } else if (seenAt != null &&
+        seenAt.toString().trim().isNotEmpty &&
+        seenAt.toString().trim().toLowerCase() != 'null') {
+      seenAtArg = seenAt.toString().trim();
+    } else {
+      seenAtArg = DateTime.now().toUtc().toIso8601String();
+    }
+
+    try {
+      await _hubConnection?.invoke(
+        'BroadcastMessagesSeen',
+        args: <Object>[convId, custId, normalizedIds, seenAtArg],
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 6. Yeni söhbət yaradıldıqdan sonra operatorlara SignalR ilə xəbər vermək
+  /// Hub metodu: BroadcastConversationCreated(conversationId, userId, topicId, subject)
+  Future<bool> broadcastConversationCreated({
+    required String conversationId,
+    String? userId,
+    required String topicId,
+    required String subject,
+  }) async {
+    if (!isConnected) {
+      final ok = await initAndConnect();
+      if (!ok || !isConnected) return false;
+    }
+
+    final convId = conversationId.trim();
+    if (convId.isEmpty) return false;
+
+    final effectiveUserId = _resolveUserId(userId);
+    final effectiveTopicId = topicId.trim();
+    final effectiveSubject = subject.trim().isNotEmpty
+        ? subject.trim()
+        : 'Dəstək müraciəti';
+
+    try {
+      await _hubConnection?.invoke(
+        'BroadcastConversationCreated',
+        args: <Object>[
+          convId,
+          effectiveUserId,
+          effectiveTopicId,
+          effectiveSubject,
+        ],
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 7. Söhbət bağlandıqda və ya statusu dəyişdikdə SignalR üzərindən yaymaq
+  /// Hub metodu: BroadcastStatusChanged(conversationId, status, customerUserId)
+  Future<bool> broadcastStatusChanged({
+    required String conversationId,
+    required int status,
+    String? customerUserId,
+  }) async {
+    if (!isConnected) {
+      final ok = await initAndConnect();
+      if (!ok || !isConnected) return false;
+    }
+
+    final convId = conversationId.trim();
+    if (convId.isEmpty) return false;
+
+    final custId = _resolveUserId(customerUserId);
+
+    try {
+      await _hubConnection?.invoke(
+        'BroadcastStatusChanged',
+        args: <Object>[convId, status, custId],
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

@@ -13,6 +13,7 @@ class SupportChatMessage {
   final DateTime? createdDate;
   final bool isSending;
   final bool hasFailed;
+  final Map<String, dynamic>? rawJson;
 
   const SupportChatMessage({
     required this.id,
@@ -29,6 +30,7 @@ class SupportChatMessage {
     this.createdDate,
     this.isSending = false,
     this.hasFailed = false,
+    this.rawJson,
   });
 
   /// Mesajın qarşı tərəfdən oxunub-oxunmadığı (seenAt !== null -> iki mavi xətt)
@@ -234,6 +236,7 @@ class SupportChatMessage {
       createdDate: dt,
       isSending: false,
       hasFailed: false,
+      rawJson: Map<String, dynamic>.from(json),
     );
   }
 
@@ -276,6 +279,7 @@ class SupportChatMessage {
     DateTime? createdDate,
     bool? isSending,
     bool? hasFailed,
+    Map<String, dynamic>? rawJson,
   }) {
     return SupportChatMessage(
       id: id ?? this.id,
@@ -292,6 +296,7 @@ class SupportChatMessage {
       createdDate: createdDate ?? this.createdDate,
       isSending: isSending ?? this.isSending,
       hasFailed: hasFailed ?? this.hasFailed,
+      rawJson: rawJson ?? this.rawJson,
     );
   }
 }

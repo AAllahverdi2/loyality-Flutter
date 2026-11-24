@@ -5,6 +5,7 @@ class ProfileItem extends StatelessWidget {
   const ProfileItem({
     required this.icon,
     required this.title,
+    this.subtitle,
     this.value,
     this.showBadge = false,
     this.isSwitch = false,
@@ -16,6 +17,7 @@ class ProfileItem extends StatelessWidget {
 
   final IconData icon;
   final String title;
+  final String? subtitle;
   final String? value;
   final bool showBadge;
   final bool isSwitch;
@@ -32,7 +34,9 @@ class ProfileItem extends StatelessWidget {
         isDark ? const Color(0xFFA1A1AA) : const Color(0xFF6B7280);
 
     return InkWell(
-      onTap: isSwitch ? null : onTap,
+      onTap: isSwitch && onSwitchChange != null
+          ? () => onSwitchChange!(!switchValue)
+          : onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -54,13 +58,29 @@ class ProfileItem extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: textColor,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 

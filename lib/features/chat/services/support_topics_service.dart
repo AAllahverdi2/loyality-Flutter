@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
@@ -18,8 +17,6 @@ class SupportTopicsService {
           'languageCode': lang,
         },
       );
-
-      debugPrint('📦 [SUPPORT_TOPICS/ACTIVE CAVABI]: ${response.statusCode}');
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
@@ -43,8 +40,7 @@ class SupportTopicsService {
         return topics;
       }
       return [];
-    } catch (e) {
-      debugPrint('❌ [SUPPORT_TOPICS/ACTIVE XƏTASI]: $e');
+    } catch (_) {
       rethrow;
     }
   }

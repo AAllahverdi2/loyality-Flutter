@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/network_monitor.dart';
@@ -7,6 +9,7 @@ import 'package:loyallig_flutter/features/chat/services/support_conversations_st
 import 'package:loyallig_flutter/features/discounts/discounts_screen.dart';
 import 'package:loyallig_flutter/features/favorites/partner_detail_screen.dart';
 import 'package:loyallig_flutter/features/notifications/notifications_screen.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
 import 'package:loyallig_flutter/features/home/barcode_screen.dart';
 import 'package:loyallig_flutter/features/partners/partners_screen.dart';
 import 'package:loyallig_flutter/features/history/models/wallet_balance.dart';
@@ -73,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onReconnected() {
     if (mounted) {
+      unawaited(NotificationsStore.instance.onAppResumed());
       _loadData(force: true);
     }
   }
@@ -122,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _isFetching = true;
+    unawaited(NotificationsStore.instance.syncSession(forceUnreadRefresh: force));
     bool barcodeSucceeded = false;
     try {
       final lang = AppLocalizations.currentLanguageCode;
@@ -217,7 +222,10 @@ class _HomeScreenState extends State<HomeScreen> {
           body: Column(
         children: [
           ListenableBuilder(
-            listenable: SupportConversationsStore.instance,
+            listenable: Listenable.merge([
+              SupportConversationsStore.instance,
+              NotificationsStore.instance,
+            ]),
             builder: (context, _) {
               return HomeHeader(
                 userName: _userName,
@@ -225,6 +233,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     SupportConversationsStore.instance.hasUnreadMessages,
                 unreadChatCount:
                     SupportConversationsStore.instance.totalUnreadCount,
+                hasUnreadNotifications: NotificationsStore.instance.hasUnread,
+                unreadNotificationsCount:
+                    NotificationsStore.instance.unreadCount,
                 onChatTap: () {
                   Navigator.of(context).push(
                     SmoothPageRoute<void>(

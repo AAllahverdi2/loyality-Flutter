@@ -12,7 +12,8 @@ class HomeHeader extends StatelessWidget {
     this.onNotificationsTap,
     this.hasUnreadChat = false,
     this.unreadChatCount = 0,
-    this.hasUnreadNotifications = true,
+    this.hasUnreadNotifications = false,
+    this.unreadNotificationsCount = 0,
     super.key,
   });
 
@@ -24,6 +25,7 @@ class HomeHeader extends StatelessWidget {
   final bool hasUnreadChat;
   final int unreadChatCount;
   final bool hasUnreadNotifications;
+  final int unreadNotificationsCount;
 
   // Ionicons chatbubble-ellipses-outline (1-to-1 exact vector from Expo)
   static const String _chatbubbleEllipsesSvg = '''
@@ -110,7 +112,7 @@ class HomeHeader extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _ChatHeaderIconButton(
+                  _HeaderIconButton(
                     svgString: _chatbubbleEllipsesSvg,
                     backgroundColor: cardColor,
                     headerBackgroundColor: backgroundColor,
@@ -124,8 +126,11 @@ class HomeHeader extends StatelessWidget {
                   _HeaderIconButton(
                     svgString: _notificationsSvg,
                     backgroundColor: cardColor,
-                    hasBadge: hasUnreadNotifications,
-                    badgeBorderColor: backgroundColor,
+                    headerBackgroundColor: backgroundColor,
+                    isDark: isDark,
+                    hasUnread:
+                        hasUnreadNotifications || unreadNotificationsCount > 0,
+                    unreadCount: unreadNotificationsCount,
                     onTap: onNotificationsTap,
                   ),
                 ],
@@ -138,8 +143,10 @@ class HomeHeader extends StatelessWidget {
   }
 }
 
-class _ChatHeaderIconButton extends StatefulWidget {
-  const _ChatHeaderIconButton({
+/// Header ikon düyməsi (oxunmamış mesaj və ya bildiriş olduqda nəbz halqası,
+/// narıncı çərçivə, işıq kölgəsi və qırmızı sayğac nişanı göstərir).
+class _HeaderIconButton extends StatefulWidget {
+  const _HeaderIconButton({
     required this.svgString,
     required this.backgroundColor,
     required this.headerBackgroundColor,
@@ -158,10 +165,10 @@ class _ChatHeaderIconButton extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<_ChatHeaderIconButton> createState() => _ChatHeaderIconButtonState();
+  State<_HeaderIconButton> createState() => _HeaderIconButtonState();
 }
 
-class _ChatHeaderIconButtonState extends State<_ChatHeaderIconButton>
+class _HeaderIconButtonState extends State<_HeaderIconButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
@@ -183,7 +190,7 @@ class _ChatHeaderIconButtonState extends State<_ChatHeaderIconButton>
   }
 
   @override
-  void didUpdateWidget(covariant _ChatHeaderIconButton oldWidget) {
+  void didUpdateWidget(covariant _HeaderIconButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.hasUnread && widget.hasUnread) {
       _pulseController.repeat();
@@ -247,7 +254,7 @@ class _ChatHeaderIconButtonState extends State<_ChatHeaderIconButton>
               },
             ),
 
-          // Əsas çat düyməsi
+          // Əsas dairəvi ikon düyməsi
           Container(
             width: 44,
             height: 44,
@@ -289,7 +296,7 @@ class _ChatHeaderIconButtonState extends State<_ChatHeaderIconButton>
             ),
           ),
 
-          // Oxunmamış mesaj sayı / parlaq bildiriş nişanı
+          // Oxunmamış say / parlaq bildiriş nişanı
           if (widget.hasUnread)
             Positioned(
               top: -4,
@@ -329,76 +336,6 @@ class _ChatHeaderIconButtonState extends State<_ChatHeaderIconButton>
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.svgString,
-    required this.backgroundColor,
-    required this.onTap,
-    this.hasBadge = false,
-    this.badgeBorderColor = Colors.white,
-  });
-
-  final String svgString;
-  final Color backgroundColor;
-  final VoidCallback? onTap;
-  final bool hasBadge;
-  final Color badgeBorderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SvgPicture.string(
-                svgString,
-                width: 22,
-                height: 22,
-              ),
-              if (hasBadge)
-                Positioned(
-                  top: 10,
-                  right: 12,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDC2626),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: badgeBorderColor,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
       ),
     );
   }

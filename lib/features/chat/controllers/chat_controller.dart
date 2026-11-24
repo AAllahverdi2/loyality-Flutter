@@ -189,7 +189,9 @@ class ChatController extends ChangeNotifier {
       }
 
       final existingIdx = messages.indexWhere((m) {
-        if (m.id == msg.id) return true;
+        if (m.id.trim().toLowerCase() == msg.id.trim().toLowerCase()) {
+          return true;
+        }
         if (m.id.startsWith('temp_') &&
             !m.hasFailed &&
             m.isUser == msg.isUser) {
@@ -232,17 +234,8 @@ class ChatController extends ChangeNotifier {
       if (event.conversationId != null &&
           event.conversationId!.trim().toLowerCase() !=
               conversationId!.trim().toLowerCase()) {
-        debugPrint(
-          '⚠️ [CHAT UI] OperatorTyping başqa söhbət üçündür: '
-          'eventConvId=${event.conversationId}, activeConvId=$conversationId',
-        );
         return;
       }
-
-      debugPrint(
-        '💬 [CHAT UI] Operator yazır yeniləndi: '
-        'isTyping=${event.isTyping}, operatorId=${event.operatorUserId}, convId=${event.conversationId}',
-      );
 
       if (event.isTyping) {
         isOperatorTyping = true;
@@ -264,34 +257,48 @@ class ChatController extends ChangeNotifier {
     _seenSub = _hubService.onMessagesSeen.listen((event) {
       if (_isDisposed || conversationId == null) return;
       if (event.conversationId != null &&
+          event.conversationId!.trim().isNotEmpty &&
           event.conversationId!.trim().toLowerCase() !=
               conversationId!.trim().toLowerCase()) {
         return;
       }
-      if (event.messageIds.isEmpty) return;
+      if (event.messageIds.isEmpty && !event.hasExplicitSeenAt) return;
 
       final effectiveSeenAt = event.seenAt ?? DateTime.now();
       final seenSet = event.messageIds
           .map((id) => id.trim().toLowerCase())
           .where((id) => id.isNotEmpty)
           .toSet();
-      if (seenSet.isEmpty) return;
 
       for (final normId in seenSet) {
         _seenMessageTimestamps[normId] = effectiveSeenAt;
       }
 
+      final cutoffUtc = effectiveSeenAt.toUtc().add(const Duration(seconds: 5));
       bool updated = false;
       for (int i = 0; i < messages.length; i++) {
         final m = messages[i];
         final isMatchedId = seenSet.contains(m.id.trim().toLowerCase());
         final isSentTempUserMsg =
+            seenSet.isNotEmpty &&
             m.isUser &&
             !m.isSending &&
             !m.hasFailed &&
             m.id.startsWith('temp_');
+        final isSeenByTimestampFallback =
+            seenSet.isEmpty &&
+            event.hasExplicitSeenAt &&
+            m.isUser &&
+            !m.isSending &&
+            !m.hasFailed &&
+            m.id != 'greeting_msg' &&
+            (m.createdDate == null ||
+                !m.createdDate!.toUtc().isAfter(cutoffUtc));
 
-        if (isMatchedId || isSentTempUserMsg) {
+        if (isMatchedId || isSentTempUserMsg || isSeenByTimestampFallback) {
+          if (seenSet.isEmpty && !m.id.startsWith('temp_')) {
+            _seenMessageTimestamps[m.id.trim().toLowerCase()] = effectiveSeenAt;
+          }
           if (!m.isSeen || m.seenAt == null) {
             messages[i] = m.copyWith(
               isRead: true,
@@ -315,15 +322,18 @@ class ChatController extends ChangeNotifier {
       }
 
       final wasClosed = isClosed;
-      final s = event.status.toLowerCase();
-      isClosed =
-          s == '4' ||
-          s == '5' ||
-          s.contains('close') ||
-          s.contains('bağ') ||
-          s.contains('resolved') ||
-          s.contains('solved') ||
-          s.contains('həll');
+      isClosed = SupportConversation.isClosedStatus(
+        event.status,
+        event.statusName,
+      );
+      final resolvedStatusName =
+          (event.statusName != null && event.statusName!.trim().isNotEmpty)
+          ? event.statusName!.trim()
+          : (isClosed ? 'Bağlanıb' : event.status);
+      conversation = conversation?.copyWith(
+        status: event.status,
+        statusName: resolvedStatusName,
+      );
       if (isClosed) {
         isOperatorTyping = false;
         _operatorTypingTimeout?.cancel();
@@ -452,8 +462,7 @@ class ChatController extends ChangeNotifier {
       // Çat pəncərəsi açılanda dərhal qarşı tərəfin mesajlarını "oxundu" edirik (body: {})
       _conversationsStore.markConversationRead(conversationId!);
       unawaited(_chatService.markMessagesSeen(conversationId!));
-    } catch (e) {
-      debugPrint('❌ [CHAT] Tarixçə yüklənərkən xəta: $e');
+    } catch (_) {
       isLoadingHistory = false;
       _safeNotify();
     }
@@ -463,6 +472,70 @@ class ChatController extends ChangeNotifier {
     if (conversationId == null || _isDisposed) return;
     _conversationsStore.markConversationRead(conversationId!);
     unawaited(_chatService.markMessagesSeen(conversationId!));
+  }
+
+  Future<SupportChatMessage?> _createAndBroadcastConversation({
+    required String content,
+    String? attachmentFileId,
+  }) async {
+    if (topic == null) return null;
+
+    final conv = await _chatService.createConversation(
+      supportTopicId: topic!.id,
+      subject: topic!.name,
+      content: content,
+      messageType: 'Text',
+      attachmentFileId: attachmentFileId,
+    );
+    if (conv.id.trim().isNotEmpty) {
+      conversationId = conv.id.trim();
+    }
+    conversation = conv;
+    isClosed = conv.isClosed;
+
+    SupportChatMessage? serverMsg;
+    if (conversationId != null && conversationId!.isNotEmpty) {
+      _conversationsStore.upsertConversation(
+        conv.copyWith(
+          id: conversationId,
+          topicName: conv.topicName ?? topic!.name,
+          lastMessage: content,
+          lastMessageDate: DateTime.now(),
+          unreadMessagesCount: 0,
+        ),
+      );
+      await _hubService.joinConversation(conversationId!);
+
+      var userMessages = conv.messages.where((m) => m.isUser).toList();
+      if (userMessages.isNotEmpty) {
+        serverMsg = userMessages.last.copyWith(isUser: true);
+        if (serverMsg.rawJson != null) {
+          await _hubService.broadcastMessage(
+            conversationId: conversationId!,
+            customerUserId: conv.customerUserId,
+            messagePayload: serverMsg.rawJson!,
+          );
+        }
+      }
+
+      await loadHistory();
+
+      if (userMessages.isEmpty && conversation != null) {
+        userMessages = conversation!.messages
+            .where((m) => m.isUser && m.rawJson != null)
+            .toList();
+        if (userMessages.isNotEmpty) {
+          final initial = userMessages.last.copyWith(isUser: true);
+          serverMsg ??= initial;
+          await _hubService.broadcastMessage(
+            conversationId: conversationId!,
+            customerUserId: conv.customerUserId ?? conversation!.customerUserId,
+            messagePayload: initial.rawJson!,
+          );
+        }
+      }
+    }
+    return serverMsg;
   }
 
   Future<void> sendMessage(String text) async {
@@ -502,33 +575,7 @@ class ChatController extends ChangeNotifier {
 
       if (conversationId == null || conversationId!.trim().isEmpty) {
         if (topic != null) {
-          final conv = await _chatService.createConversation(
-            supportTopicId: topic!.id,
-            subject: topic!.name,
-            content: cleanText,
-            messageType: 'Text',
-          );
-          if (conv.id.trim().isNotEmpty) {
-            conversationId = conv.id.trim();
-          }
-          conversation = conv;
-          isClosed = conv.isClosed;
-          if (conversationId != null && conversationId!.isNotEmpty) {
-            _conversationsStore.upsertConversation(
-              conv.copyWith(
-                id: conversationId,
-                topicName: conv.topicName ?? topic!.name,
-                lastMessage: cleanText,
-                lastMessageDate: DateTime.now(),
-                unreadMessagesCount: 0,
-              ),
-            );
-            if (conv.messages.isNotEmpty) {
-              serverMsg = conv.messages.last.copyWith(isUser: true);
-            }
-            await _hubService.joinConversation(conversationId!);
-            await loadHistory();
-          }
+          serverMsg = await _createAndBroadcastConversation(content: cleanText);
           sent = true;
         } else {
           throw Exception('Mövzu seçilməyib');
@@ -582,7 +629,6 @@ class ChatController extends ChangeNotifier {
       }
       _safeNotify();
     } catch (e) {
-      debugPrint('❌ [CHAT] Mesaj göndərilmə xətası: $e');
       if (_isDisposed) return;
       isSending = false;
       final idx = messages.indexWhere((m) => m.id == tempId);
@@ -653,34 +699,10 @@ class ChatController extends ChangeNotifier {
         try {
           if (conversationId == null || conversationId!.trim().isEmpty) {
             if (topic != null) {
-              final conv = await _chatService.createConversation(
-                supportTopicId: topic!.id,
-                subject: topic!.name,
+              serverMsg = await _createAndBroadcastConversation(
                 content: '📷 Şəkil',
-                messageType: 'Text',
                 attachmentFileId: res.fileId,
               );
-              if (conv.id.trim().isNotEmpty) {
-                conversationId = conv.id.trim();
-              }
-              conversation = conv;
-              isClosed = conv.isClosed;
-              if (conversationId != null && conversationId!.isNotEmpty) {
-                _conversationsStore.upsertConversation(
-                  conv.copyWith(
-                    id: conversationId,
-                    topicName: conv.topicName ?? topic!.name,
-                    lastMessage: '📷 Şəkil',
-                    lastMessageDate: DateTime.now(),
-                    unreadMessagesCount: 0,
-                  ),
-                );
-                if (conv.messages.isNotEmpty) {
-                  serverMsg = conv.messages.last.copyWith(isUser: true);
-                }
-                await _hubService.joinConversation(conversationId!);
-                await loadHistory();
-              }
               sent = true;
             }
           } else {
@@ -699,8 +721,7 @@ class ChatController extends ChangeNotifier {
             );
             sent = true;
           }
-        } catch (sendErr) {
-          debugPrint('❌ [CHAT ATTACHMENT SEND ERROR]: $sendErr');
+        } catch (_) {
           sent = false;
         }
 
@@ -748,7 +769,6 @@ class ChatController extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('❌ [ATTACHMENT PICK ERROR]: $e');
       if (_isDisposed) return;
       isUploadingAttachment = false;
       isSending = false;
@@ -767,12 +787,19 @@ class ChatController extends ChangeNotifier {
     if (conversationId == null) return;
     stopUserTyping();
     try {
-      final didClose = await _chatService.closeConversation(conversationId!);
+      final didClose = await _chatService.closeConversation(
+        conversationId!,
+        customerUserId: conversation?.customerUserId,
+      );
       if (!didClose) {
         throw Exception(tr('chat_general_error_short'));
       }
       if (_isDisposed) return;
       isClosed = true;
+      conversation = conversation?.copyWith(
+        status: '5',
+        statusName: 'Bağlanıb',
+      );
       _conversationsStore.markConversationClosed(conversationId!);
       _safeNotify();
       onShowNotification?.call(tr('chat_closed_success'));

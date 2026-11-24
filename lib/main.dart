@@ -10,6 +10,8 @@ import 'package:loyallig_flutter/core/theme/app_theme.dart';
 import 'package:loyallig_flutter/core/widgets/network_error_view.dart';
 import 'package:loyallig_flutter/features/auth/biometric_lock_screen.dart';
 import 'package:loyallig_flutter/features/chat/services/support_conversations_store.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
+import 'package:loyallig_flutter/features/notifications/widgets/in_app_notification_overlay.dart';
 import 'package:loyallig_flutter/features/splash/splash_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -18,6 +20,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLocalizations.init();
   await AppTheme.init();
+  await NotificationsStore.instance.initPreferences();
   runApp(const MainApp());
 }
 
@@ -37,6 +40,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(SupportConversationsStore.instance.initGlobalSession());
+    unawaited(NotificationsStore.instance.initGlobalSession());
   }
 
   @override
@@ -57,6 +61,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       }
     } else if (state == AppLifecycleState.resumed) {
       unawaited(SupportConversationsStore.instance.onAppResumed());
+      unawaited(NotificationsStore.instance.onAppResumed());
       if (_pausedTime != null &&
           !BiometricService.instance.isAuthenticating &&
           !BiometricService.instance.isLockSuppressed) {
@@ -137,6 +142,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
                   child: Stack(
                     children: [
                       child ?? const SizedBox.shrink(),
+                      const InAppNotificationOverlay(),
                       const GlobalNetworkErrorOverlay(),
                     ],
                   ),

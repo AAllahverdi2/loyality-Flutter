@@ -7,11 +7,9 @@ import 'package:loyallig_flutter/features/auth/login_screen.dart';
 import 'package:loyallig_flutter/features/auth/models/send_register_code_request.dart';
 import 'package:loyallig_flutter/features/auth/otp_verification_screen.dart';
 import 'package:loyallig_flutter/features/auth/services/auth_service.dart';
-import 'package:loyallig_flutter/core/network/token_storage.dart';
+import 'package:loyallig_flutter/features/auth/utils/social_auth_helper.dart';
 import 'package:loyallig_flutter/features/auth/widgets/primary_button.dart';
 import 'package:loyallig_flutter/features/auth/widgets/social_auth_section.dart';
-import 'package:loyallig_flutter/features/main/main_screen.dart';
-import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -30,7 +28,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _authService = AuthService();
   bool _loading = false;
   bool _googleLoading = false;
+  bool _appleLoading = false;
   String? _errorMessage;
+
+  bool get _isAnyLoading => _loading || _googleLoading || _appleLoading;
 
   String? _emailError;
   String? _firstNameError;
@@ -87,7 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (_loading || _googleLoading) return;
+    if (_isAnyLoading) return;
 
     final email = _emailController.text.trim();
     final firstName = _firstNameController.text.trim();
@@ -211,71 +212,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    if (_loading || _googleLoading) return;
+  Future<void> _runSocialSignIn({
+    required Future<Response?> Function() action,
+    required String fallbackErrorKey,
+    required ValueChanged<bool> setSpinner,
+  }) async {
+    if (_isAnyLoading) return;
 
     setState(() {
-      _googleLoading = true;
+      setSpinner(true);
       _errorMessage = null;
     });
 
     try {
-      final response = await _authService.signInWithGoogle();
-      if (response == null) {
-        // İstifadəçi pəncərəni bağladı
-        if (mounted) setState(() => _googleLoading = false);
-        return;
-      }
-
+      final response = await action();
       if (!mounted) return;
-      setState(() => _googleLoading = false);
+      setState(() => setSpinner(false));
+      if (response == null) return;
 
-      final hasPin = await TokenStorage.hasPinCode();
-      if (!mounted) return;
-
-      if (hasPin) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const MainScreen()),
-          (route) => false,
-        );
-      } else {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(
-            builder: (_) => const PinCodeSettingsScreen(
-              showHeader: false,
-              isMandatorySetup: true,
-            ),
-          ),
-          (route) => false,
-        );
-      }
+      await SocialAuthHelper.navigateAfterAuth(context);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _googleLoading = false);
-
-      String errorMsg = tr('auth_google_auth_failed');
-      if (e is DioException) {
-        if (e.response?.data != null) {
-          final data = e.response?.data;
-          if (data is Map) {
-            errorMsg = data['errorMessage']?.toString() ??
-                data['message']?.toString() ??
-                data['title']?.toString() ??
-                errorMsg;
-          } else if (data is String) {
-            errorMsg = data;
-          }
-        } else if (e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.connectionError) {
-          errorMsg = tr('auth_network_error');
-        }
-      } else if (e is Exception) {
-        errorMsg = e.toString().replaceFirst('Exception: ', '');
-      }
-
-      setState(() => _errorMessage = errorMsg);
+      setState(() {
+        setSpinner(false);
+        _errorMessage = SocialAuthHelper.extractErrorMessage(
+          e,
+          fallbackMessage: tr(fallbackErrorKey),
+        );
+      });
     }
   }
+
+  Future<void> _handleGoogleSignIn() => _runSocialSignIn(
+        action: _authService.signInWithGoogle,
+        fallbackErrorKey: 'auth_google_auth_failed',
+        setSpinner: (v) => _googleLoading = v,
+      );
+
+  Future<void> _handleAppleSignIn() => _runSocialSignIn(
+        action: _authService.signInWithApple,
+        fallbackErrorKey: 'auth_apple_auth_failed',
+        setSpinner: (v) => _appleLoading = v,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +363,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               PrimaryButton(
                 label: _loading ? tr('common_loading') : tr('auth_register_link'),
-                onPressed: (_loading || _googleLoading) ? () {} : _handleRegister,
+                onPressed: _isAnyLoading ? () {} : _handleRegister,
                 height: 52,
                 borderRadius: 12,
                 paddingTop: 24,
@@ -394,8 +372,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // divider & social buttons
               SocialAuthSection(
-                onGoogleTap: (_loading || _googleLoading) ? null : _handleGoogleSignIn,
+                onGoogleTap: _isAnyLoading ? null : _handleGoogleSignIn,
+                onAppleTap: _isAnyLoading ? null : _handleAppleSignIn,
                 isGoogleLoading: _googleLoading,
+                isAppleLoading: _appleLoading,
                 dividerText: tr('auth_or_register'),
               ),
               const SizedBox(height: 24),

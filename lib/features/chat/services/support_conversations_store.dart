@@ -61,8 +61,7 @@ class SupportConversationsStore extends ChangeNotifier {
     final hasTokenInMemory =
         ApiClient.instance.accessToken != null &&
         ApiClient.instance.accessToken!.trim().isNotEmpty;
-    final hasSession =
-        hasTokenInMemory || await TokenStorage.hasValidSession();
+    final hasSession = hasTokenInMemory || await TokenStorage.hasValidSession();
     if (!hasSession) return;
 
     unawaited(_hubService.initAndConnect());
@@ -89,7 +88,9 @@ class SupportConversationsStore extends ChangeNotifier {
 
     try {
       final fetched = await _chatService.getMyConversations();
-      final activeConvId = _hubService.activeConversationId?.trim().toLowerCase();
+      final activeConvId = _hubService.activeConversationId
+          ?.trim()
+          .toLowerCase();
 
       _conversations = fetched.map((conv) {
         // Əgər istifadəçi hazırda bu çatın içindədirsə, oxunmamış sayını 0 saxlayırıq
@@ -104,8 +105,7 @@ class SupportConversationsStore extends ChangeNotifier {
       _hasLoadedOnce = true;
       notifyListeners();
       return _conversations;
-    } catch (e) {
-      debugPrint('⚠️ [GLOBAL CHAT STORE] Siyahı yenilənmə xətası: $e');
+    } catch (_) {
       if (!silent) rethrow;
       return _conversations;
     } finally {
@@ -181,10 +181,22 @@ class SupportConversationsStore extends ChangeNotifier {
     );
 
     if (idx != -1) {
+      final isClosedStatus = SupportConversation.isClosedStatus(
+        event.status,
+        event.statusName,
+      );
+      final resolvedStatusName =
+          (event.statusName != null && event.statusName!.trim().isNotEmpty)
+          ? event.statusName!.trim()
+          : (isClosedStatus ? 'Bağlanıb' : event.status);
+
       final updatedList = List<SupportConversation>.from(_conversations);
       updatedList[idx] = updatedList[idx].copyWith(
         status: event.status,
-        statusName: event.status,
+        statusName: resolvedStatusName,
+        unreadMessagesCount: isClosedStatus
+            ? 0
+            : updatedList[idx].unreadMessagesCount,
       );
       _conversations = updatedList;
       notifyListeners();
@@ -257,8 +269,8 @@ class SupportConversationsStore extends ChangeNotifier {
     if (idx != -1) {
       final updatedList = List<SupportConversation>.from(_conversations);
       updatedList[idx] = updatedList[idx].copyWith(
-        status: 'Closed',
-        statusName: 'Bağlandı',
+        status: '5',
+        statusName: 'Bağlanıb',
         unreadMessagesCount: 0,
       );
       _conversations = updatedList;
@@ -273,4 +285,3 @@ class SupportConversationsStore extends ChangeNotifier {
     notifyListeners();
   }
 }
-

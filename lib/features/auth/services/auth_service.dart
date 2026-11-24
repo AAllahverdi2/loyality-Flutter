@@ -4,9 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
+import 'package:loyallig_flutter/core/services/apple_auth_service.dart';
 import 'package:loyallig_flutter/core/services/google_auth_service.dart';
 import 'package:loyallig_flutter/core/utils/device_helper.dart';
 import 'package:loyallig_flutter/core/network/token_storage.dart';
+import 'package:loyallig_flutter/features/auth/models/apple_login_request.dart';
 import 'package:loyallig_flutter/features/auth/models/change_password_request.dart';
 import 'package:loyallig_flutter/features/auth/models/forgot_password_request.dart';
 import 'package:loyallig_flutter/features/auth/models/google_login_request.dart';
@@ -22,6 +24,8 @@ import 'package:loyallig_flutter/features/chat/services/support_conversations_st
 import 'package:loyallig_flutter/features/discounts/services/discounts_service.dart';
 import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
 import 'package:loyallig_flutter/features/history/services/wallet_service.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_hub_service.dart';
+import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
 import 'package:loyallig_flutter/features/partners/services/partners_service.dart';
 import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
@@ -36,6 +40,7 @@ class AuthService {
     TransactionService.clearLookupsCache();
     DiscountsService.clearLookupsCache();
     SupportConversationsStore.instance.clear();
+    NotificationsStore.instance.clear();
     await TokenStorage.clearCachedUserProfileData();
   }
 
@@ -43,7 +48,7 @@ class AuthService {
   bool _extractAndSaveTokens(dynamic responseData) {
     bool hasPin = false;
     if (responseData is Map) {
-      final result = responseData['result'];
+      final result = responseData['result'] ?? responseData['data'];
       String? token;
       String? refreshToken;
 
@@ -86,6 +91,32 @@ class AuthService {
     return hasPin;
   }
 
+  Future<Response> _applyAuthSessionResponse(
+    Response response, {
+    required String fallbackError,
+  }) async {
+    if (response.data is Map && response.data['isSuccess'] == false) {
+      final errors = response.data['errors'];
+      final message = (errors is List && errors.isNotEmpty)
+          ? errors.first?.toString()
+          : (response.data['message'] ?? response.data['errorMessage'])
+              ?.toString();
+      throw Exception(
+        (message != null && message.trim().isNotEmpty)
+            ? message.trim()
+            : fallbackError,
+      );
+    }
+
+    await SupportChatHubService.instance.stop();
+    await NotificationsHubService.instance.stop();
+    await _resetUserCaches();
+    _extractAndSaveTokens(response.data);
+    unawaited(SupportConversationsStore.instance.initGlobalSession());
+    unawaited(NotificationsStore.instance.initGlobalSession());
+    return response;
+  }
+
   // Giriş (Login) - LoginRequest modeli ilə
   Future<Response> login(LoginRequest request) async {
     try {
@@ -93,12 +124,10 @@ class AuthService {
         ApiEndpoints.login,
         data: request.toJson(),
       );
-
-      await SupportChatHubService.instance.stop();
-      await _resetUserCaches();
-      _extractAndSaveTokens(response.data);
-      unawaited(SupportConversationsStore.instance.initGlobalSession());
-      return response;
+      return await _applyAuthSessionResponse(
+        response,
+        fallbackError: 'Giriş uğursuz oldu.',
+      );
     } catch (e) {
       rethrow;
     }
@@ -128,12 +157,10 @@ class AuthService {
         ApiEndpoints.googleLogin,
         data: request.toJson(),
       );
-
-      await SupportChatHubService.instance.stop();
-      await _resetUserCaches();
-      _extractAndSaveTokens(response.data);
-      unawaited(SupportConversationsStore.instance.initGlobalSession());
-      return response;
+      return await _applyAuthSessionResponse(
+        response,
+        fallbackError: 'Google ilə giriş uğursuz oldu.',
+      );
     } catch (e) {
       rethrow;
     }
@@ -155,6 +182,43 @@ class AuthService {
     return await loginWithGoogle(
       GoogleLoginRequest(
         idToken: idToken,
+        deviceId: deviceId,
+        deviceName: deviceName,
+      ),
+    );
+  }
+
+  // Apple ilə Giriş API Sorğusu (/api/auth/apple-login)
+  Future<Response> loginWithApple(AppleLoginRequest request) async {
+    try {
+      final response = await _client.post(
+        ApiEndpoints.appleLogin,
+        data: request.toJson(),
+      );
+      return await _applyAuthSessionResponse(
+        response,
+        fallbackError: 'Apple ilə giriş uğursuz oldu.',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Apple Giriş Bütöv Flow (Apple Credential -> Cihaz məlumatları -> Backend API)
+  Future<Response?> signInWithApple() async {
+    final credential = await AppleAuthService.signInAndGetCredential();
+    if (credential == null) {
+      return null; // İstifadəçi pəncərəni bağladı
+    }
+
+    final deviceId = await DeviceHelper.getDeviceId();
+    final deviceName = await DeviceHelper.getDeviceName();
+
+    return await loginWithApple(
+      AppleLoginRequest(
+        identityToken: credential.identityToken,
+        firstName: credential.firstName,
+        lastName: credential.lastName,
         deviceId: deviceId,
         deviceName: deviceName,
       ),
@@ -200,12 +264,10 @@ class AuthService {
         ApiEndpoints.register,
         data: request.toJson(),
       );
-
-      await SupportChatHubService.instance.stop();
-      await _resetUserCaches();
-      _extractAndSaveTokens(response.data);
-      unawaited(SupportConversationsStore.instance.initGlobalSession());
-      return response;
+      return await _applyAuthSessionResponse(
+        response,
+        fallbackError: 'Qeydiyyat uğursuz oldu.',
+      );
     } catch (e) {
       rethrow;
     }
@@ -294,6 +356,7 @@ class AuthService {
       }
     } finally {
       await SupportChatHubService.instance.stop();
+      await NotificationsHubService.instance.stop();
       await _resetUserCaches();
       await GoogleAuthService.signOut();
       _client.clearAuthToken();

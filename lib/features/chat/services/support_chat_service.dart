@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
@@ -95,10 +94,6 @@ class SupportChatService {
         data: payload,
       );
 
-      if (kDebugMode) {
-        debugPrint('📦 [SUPPORT_CHAT CREATE RES]: ${response.statusCode}');
-      }
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
         SupportConversation? parsedConv;
@@ -158,9 +153,6 @@ class SupportChatService {
         // Əgər POST /create cavabında id qaytarılmayıbsa (məs: { isSuccess: true }),
         // dərhal /my siyahısından yeni yaradılmış aktiv müraciəti tapıb real id-ni götürürük.
         if (parsedConv == null || parsedConv.id.trim().isEmpty) {
-          debugPrint(
-            '🔄 [SUPPORT_CHAT CREATE] Cavabda id tapılmadı, /my siyahısından axtarılır...',
-          );
           final myList = await getMyConversations();
           final normTopicId = supportTopicId.trim().toLowerCase();
           final normSubject = (subject ?? '').trim().toLowerCase();
@@ -207,18 +199,31 @@ class SupportChatService {
               parsedConv = anyOpen.first;
             }
           }
-          debugPrint(
-            '✅ [SUPPORT_CHAT CREATE] /my siyahısından tapılan convId: ${parsedConv?.id}',
-          );
         }
 
         if (parsedConv != null && parsedConv.id.trim().isNotEmpty) {
+          final convId = parsedConv.id.trim();
+          final resolvedTopicId =
+              (parsedConv.topicId != null &&
+                  parsedConv.topicId!.trim().isNotEmpty)
+              ? parsedConv.topicId!.trim()
+              : supportTopicId.trim();
+          final resolvedSubject =
+              (parsedConv.title != null && parsedConv.title!.trim().isNotEmpty)
+              ? parsedConv.title!.trim()
+              : payload['subject'].toString();
+
+          await SupportChatHubService.instance.broadcastConversationCreated(
+            conversationId: convId,
+            userId: parsedConv.customerUserId,
+            topicId: resolvedTopicId,
+            subject: resolvedSubject,
+          );
           return parsedConv;
         }
       }
       throw Exception('Söhbət yaradıla bilmədi: ${response.statusCode}');
-    } catch (e) {
-      debugPrint('❌ [SUPPORT_CHAT CREATE XƏTASI]: $e');
+    } catch (_) {
       rethrow;
     }
   }
@@ -259,8 +264,7 @@ class SupportChatService {
             .toList();
       }
       return [];
-    } catch (e) {
-      debugPrint('❌ [SUPPORT_CHAT MY XƏTASI]: $e');
+    } catch (_) {
       rethrow;
     }
   }
@@ -295,8 +299,7 @@ class SupportChatService {
         );
       }
       throw Exception('Söhbət detalları alına bilmədi: ${response.statusCode}');
-    } catch (e) {
-      debugPrint('❌ [SUPPORT_CHAT MY BY ID XƏTASI]: $e');
+    } catch (_) {
       rethrow;
     }
   }
@@ -323,10 +326,6 @@ class SupportChatService {
         data: payload,
       );
 
-      if (kDebugMode) {
-        debugPrint('📦 [SUPPORT_CHAT SEND REST RES]: ${response.statusCode}');
-      }
-
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           response.data != null) {
         final data = response.data;
@@ -339,6 +338,17 @@ class SupportChatService {
 
           if (result is Map) {
             final resultMap = Map<String, dynamic>.from(result);
+            await SupportChatHubService.instance.broadcastMessage(
+              conversationId:
+                  (resultMap['conversationId'] ?? conversationId).toString(),
+              customerUserId:
+                  (resultMap['customerUserId'] ??
+                          resultMap['userId'] ??
+                          resultMap['senderUserId'])
+                      ?.toString(),
+              messagePayload: resultMap,
+            );
+
             final realId = (resultMap['id'] ?? resultMap['messageId'])
                 ?.toString()
                 .trim();
@@ -383,8 +393,7 @@ class SupportChatService {
         }
       }
       return null;
-    } catch (e) {
-      debugPrint('❌ [SUPPORT_CHAT SEND REST XƏTASI]: $e');
+    } catch (_) {
       rethrow;
     }
   }
@@ -399,24 +408,72 @@ class SupportChatService {
       );
 
       final statusCode = response.statusCode ?? 0;
-      return statusCode >= 200 && statusCode < 300;
-    } catch (e) {
-      debugPrint('⚠️ [SUPPORT_CHAT MARK SEEN XƏTASI]: $e');
+      final isOk = statusCode >= 200 && statusCode < 300;
+      if (isOk && response.data is Map) {
+        final data = response.data as Map;
+        final hasNested =
+            data.containsKey('result') || data.containsKey('data');
+        final rawResult = hasNested ? (data['result'] ?? data['data']) : data;
+        if (rawResult is Map) {
+          final resultMap = Map<String, dynamic>.from(rawResult);
+          final rawIds = resultMap['messageIds'];
+          if (rawIds is Iterable) {
+            final ids = rawIds.toList();
+            if (ids.isNotEmpty) {
+              await SupportChatHubService.instance.broadcastMessagesSeen(
+                conversationId:
+                    (resultMap['conversationId'] ?? conversationId).toString(),
+                customerUserId:
+                    (resultMap['customerUserId'] ?? resultMap['userId'])
+                        ?.toString(),
+                messageIds: ids,
+                seenAt: resultMap['seenAt'] ?? resultMap['readAt'],
+              );
+            }
+          }
+        }
+      }
+      return isOk;
+    } catch (_) {
       return false;
     }
   }
 
   /// Müştərinin söhbəti bağlaması
   /// POST /api/SupportConversations/my/{id}/close
-  Future<bool> closeConversation(String conversationId) async {
+  Future<bool> closeConversation(
+    String conversationId, {
+    String? customerUserId,
+  }) async {
     try {
       final response = await _client.post(
         ApiEndpoints.supportConversationsMyClose(conversationId),
       );
       final statusCode = response.statusCode ?? 0;
-      return statusCode >= 200 && statusCode < 300;
-    } catch (e) {
-      debugPrint('❌ [SUPPORT_CHAT CLOSE XƏTASI]: $e');
+      final isOk = statusCode >= 200 && statusCode < 300;
+      if (isOk) {
+        String? resolvedCustomerId = customerUserId;
+        if (response.data is Map) {
+          final data = response.data as Map;
+          final rawResult = (data.containsKey('result') || data.containsKey('data'))
+              ? (data['result'] ?? data['data'])
+              : data;
+          if (rawResult is Map) {
+            resolvedCustomerId ??=
+                (rawResult['customerUserId'] ??
+                        rawResult['userId'] ??
+                        rawResult['customerId'])
+                    ?.toString();
+          }
+        }
+        await SupportChatHubService.instance.broadcastStatusChanged(
+          conversationId: conversationId,
+          status: 5,
+          customerUserId: resolvedCustomerId,
+        );
+      }
+      return isOk;
+    } catch (_) {
       rethrow;
     }
   }

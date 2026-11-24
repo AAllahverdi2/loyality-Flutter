@@ -12,6 +12,7 @@ class SupportConversation {
   final DateTime? updatedDate;
   final String? lastMessage;
   final DateTime? lastMessageDate;
+  final String? customerUserId;
   final List<SupportChatMessage> messages;
 
   const SupportConversation({
@@ -27,28 +28,35 @@ class SupportConversation {
     this.updatedDate,
     this.lastMessage,
     this.lastMessageDate,
+    this.customerUserId,
     this.messages = const [],
   }) : unreadMessagesCount = unreadMessagesCount ?? unreadCount ?? 0;
 
   /// Köhnə sahə adı ilə geriyə uyğunluq üçün getter
   int get unreadCount => unreadMessagesCount;
 
-  bool get isClosed {
-    final s = status?.toLowerCase() ?? '';
-    final sn = statusName?.toLowerCase() ?? '';
+  static bool isClosedStatus(String? status, [String? statusName]) {
+    final s = status?.trim().toLowerCase() ?? '';
+    final sn = statusName?.trim().toLowerCase() ?? '';
     return s == 'closed' ||
         s == 'bagli' ||
         s == 'bağlı' ||
+        s == 'baglanib' ||
+        s == 'bağlanıb' ||
         s == '4' ||
         s == '5' ||
         s.contains('resolved') ||
         s.contains('solved') ||
         s.contains('həll') ||
+        s.contains('close') ||
+        s.contains('bağ') ||
         sn.contains('bağ') ||
         sn.contains('close') ||
         sn.contains('resolved') ||
         sn.contains('həll');
   }
+
+  bool get isClosed => isClosedStatus(status, statusName);
 
   bool get isOpen => !isClosed;
 
@@ -138,6 +146,9 @@ class SupportConversation {
                       json['lastMessage']['createdAt'])
                 : null),
       ),
+      customerUserId:
+          (json['customerUserId'] ?? json['customerId'] ?? json['userId'])
+              ?.toString(),
       messages: parsedMessages,
     );
   }
@@ -173,6 +184,7 @@ class SupportConversation {
     DateTime? updatedDate,
     String? lastMessage,
     DateTime? lastMessageDate,
+    String? customerUserId,
     List<SupportChatMessage>? messages,
   }) {
     return SupportConversation(
@@ -188,6 +200,7 @@ class SupportConversation {
       updatedDate: updatedDate ?? this.updatedDate,
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageDate: lastMessageDate ?? this.lastMessageDate,
+      customerUserId: customerUserId ?? this.customerUserId,
       messages: messages ?? this.messages,
     );
   }
