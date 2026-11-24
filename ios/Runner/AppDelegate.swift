@@ -43,8 +43,27 @@ import UserNotifications
       requestNotificationPermission(result: result)
     case "openNotificationSettings":
       openAppNotificationSettings(result: result)
+    case "setBadgeCount":
+      let count = (call.arguments as? [String: Any])?["count"] as? Int ?? 0
+      setAppBadgeCount(count, result: result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func setAppBadgeCount(_ count: Int, result: @escaping FlutterResult) {
+    let safeCount = count < 0 ? 0 : count
+    DispatchQueue.main.async {
+      if #available(iOS 16.0, *) {
+        UNUserNotificationCenter.current().setBadgeCount(safeCount) { error in
+          DispatchQueue.main.async {
+            result(error == nil)
+          }
+        }
+      } else {
+        UIApplication.shared.applicationIconBadgeNumber = safeCount
+        result(true)
+      }
     }
   }
 
