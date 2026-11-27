@@ -160,14 +160,31 @@ class AuthService {
   // Google ilə Giriş API Sorğusu (/api/Auth/google-login)
   Future<Response> loginWithGoogle(GoogleLoginRequest request) async {
     try {
+      if (kDebugMode) {
+        debugPrint(
+          '🌐 [GOOGLE LOGIN] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.googleLogin}',
+        );
+      }
       final response = await _client.post(
         ApiEndpoints.googleLogin,
         data: request.toJson(),
       );
+      if (kDebugMode) {
+        debugPrint(
+          '✅ [GOOGLE LOGIN] status=${response.statusCode} uri=${response.requestOptions.uri}',
+        );
+      }
       return await _applyAuthSessionResponse(
         response,
         fallbackError: 'Google ilə giriş uğursuz oldu.',
       );
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '❌ [GOOGLE LOGIN API XƏTASI]: type=${e.type.name} status=${e.response?.statusCode} uri=${e.requestOptions.uri} msg=${e.message} err=${e.error} body=${e.response?.data}',
+        );
+      }
+      rethrow;
     } catch (e) {
       rethrow;
     }
