@@ -1,4 +1,15 @@
+import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 import 'package:loyallig_flutter/features/history/models/transaction.dart';
+
+enum LoyaltyTransactionKind {
+  purchase,
+  bonusGrant,
+  bonusRedemption,
+  discountApplied,
+  refund,
+  adjustment,
+  unknown,
+}
 
 class WalletHistoryEvent {
   final String id;
@@ -85,6 +96,7 @@ class UserTransactionItem {
   final String id;
   final String itemName;
   final int quantity;
+  final double exactQuantity;
   final double unitPrice;
   final double total;
   final String? metadataJson;
@@ -93,16 +105,20 @@ class UserTransactionItem {
     required this.id,
     required this.itemName,
     required this.quantity,
+    double? exactQuantity,
     required this.unitPrice,
     required this.total,
     this.metadataJson,
-  });
+  }) : exactQuantity = exactQuantity ?? quantity * 1.0;
 
   factory UserTransactionItem.fromJson(Map<String, dynamic> json) {
+    final parsedQty = (json['quantity'] as num?)?.toDouble() ?? 1.0;
+    final intQty = parsedQty >= 1 ? parsedQty.round() : 1;
     return UserTransactionItem(
       id: json['id']?.toString() ?? '',
       itemName: json['itemName']?.toString() ?? '',
-      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      quantity: intQty,
+      exactQuantity: parsedQty,
       unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0.0,
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
       metadataJson: json['metadataJson']?.toString(),
@@ -113,7 +129,7 @@ class UserTransactionItem {
     return {
       'id': id,
       'itemName': itemName,
-      'quantity': quantity,
+      'quantity': exactQuantity,
       'unitPrice': unitPrice,
       'total': total,
       'metadataJson': metadataJson,
@@ -140,6 +156,7 @@ class UserTransaction {
   final double spentBonusAmount;
   final double netBonusAmount;
   final DateTime? transactionAt;
+  final String? fiscalId;
   final String? notes;
   final String? fileId;
   final String? fileName;
@@ -147,6 +164,110 @@ class UserTransaction {
   final List<WalletHistoryEvent> walletHistories;
 
   double get bonusAmount => earnedBonusAmount > 0 ? earnedBonusAmount : (netBonusAmount > 0 ? netBonusAmount : 0.0);
+
+  bool get hasFiscalId => fiscalId != null && fiscalId!.trim().isNotEmpty;
+
+  LoyaltyTransactionKind get resolvedTransactionKind {
+    final raw = (transactionType ?? transactionTypeName ?? '')
+        .trim()
+        .toLowerCase();
+    final compact = raw.replaceAll(RegExp(r'[\s_-]+'), '');
+    switch (compact) {
+      case '1':
+      case 'purchase':
+      case 'alış':
+      case 'alis':
+      case 'покупка':
+        return LoyaltyTransactionKind.purchase;
+      case '2':
+      case 'bonusgrant':
+      case 'bonusəlavəedilməsi':
+      case 'bonuselaveedilmesi':
+      case 'начислениебонуса':
+        return LoyaltyTransactionKind.bonusGrant;
+      case '3':
+      case 'bonusredemption':
+      case 'bonusistifadəsi':
+      case 'bonusistifadesi':
+      case 'списаниебонуса':
+        return LoyaltyTransactionKind.bonusRedemption;
+      case '4':
+      case 'discountapplied':
+      case 'endirimtətbiqi':
+      case 'endirimtetbiqi':
+      case 'применениескидки':
+        return LoyaltyTransactionKind.discountApplied;
+      case '5':
+      case 'refund':
+      case 'geriqaytarma':
+      case 'возврат':
+        return LoyaltyTransactionKind.refund;
+      case '6':
+      case 'adjustment':
+      case 'düzəliş':
+      case 'duzelis':
+      case 'корректировка':
+        return LoyaltyTransactionKind.adjustment;
+    }
+
+    if (raw.contains('purchase') || raw.contains('alış')) {
+      return LoyaltyTransactionKind.purchase;
+    }
+    if (raw.contains('grant') || raw.contains('əlavə')) {
+      return LoyaltyTransactionKind.bonusGrant;
+    }
+    if (raw.contains('redemption') || raw.contains('istifadə')) {
+      return LoyaltyTransactionKind.bonusRedemption;
+    }
+    if (raw.contains('discount') || raw.contains('endirim')) {
+      return LoyaltyTransactionKind.discountApplied;
+    }
+    if (raw.contains('refund') || raw.contains('qaytar')) {
+      return LoyaltyTransactionKind.refund;
+    }
+    if (raw.contains('adjust') || raw.contains('düzəliş')) {
+      return LoyaltyTransactionKind.adjustment;
+    }
+    return LoyaltyTransactionKind.unknown;
+  }
+
+  String get displayTransactionType {
+    final fromApi = transactionTypeName?.trim();
+    if (fromApi != null && fromApi.isNotEmpty) {
+      return fromApi;
+    }
+    return switch (resolvedTransactionKind) {
+      LoyaltyTransactionKind.purchase => tr('history_type_purchase'),
+      LoyaltyTransactionKind.bonusGrant => tr('history_type_bonus_grant'),
+      LoyaltyTransactionKind.bonusRedemption =>
+        tr('history_type_bonus_redemption'),
+      LoyaltyTransactionKind.discountApplied =>
+        tr('history_type_discount_applied'),
+      LoyaltyTransactionKind.refund => tr('history_type_refund'),
+      LoyaltyTransactionKind.adjustment => tr('history_type_adjustment'),
+      LoyaltyTransactionKind.unknown =>
+        (transactionType?.trim().isNotEmpty == true)
+            ? transactionType!.trim()
+            : tr('history_type_purchase'),
+    };
+  }
+
+  String get receiptTitle {
+    return switch (resolvedTransactionKind) {
+      LoyaltyTransactionKind.purchase => tr('receipt_sale_title'),
+      LoyaltyTransactionKind.refund => tr('receipt_refund_title'),
+      _ => tr('receipt_operation_title'),
+    };
+  }
+
+  String? get fiscalQrUrl {
+    final code = fiscalId?.trim();
+    if (code == null || code.isEmpty) return null;
+    if (code.startsWith('http://') || code.startsWith('https://')) {
+      return code;
+    }
+    return 'https://monitoring.e-kassa.gov.az/#/index?doc=$code';
+  }
 
   const UserTransaction({
     required this.id,
@@ -167,6 +288,7 @@ class UserTransaction {
     this.spentBonusAmount = 0.0,
     this.netBonusAmount = 0.0,
     this.transactionAt,
+    this.fiscalId,
     this.notes,
     this.fileId,
     this.fileName,
@@ -175,6 +297,23 @@ class UserTransaction {
   });
 
   factory UserTransaction.fromJson(Map<String, dynamic> json) {
+    final lowerJson = <String, dynamic>{
+      for (final entry in json.entries)
+        entry.key.trim().toLowerCase(): entry.value,
+    };
+    final rawFiscalId = (lowerJson['fiscalid'] ??
+            lowerJson['fiskalid'] ??
+            lowerJson['fiscalcode'] ??
+            lowerJson['fiskalcode'] ??
+            lowerJson['fiscaldocumentid'])
+        ?.toString()
+        .trim();
+    final cleanFiscalId = (rawFiscalId == null ||
+            rawFiscalId.isEmpty ||
+            rawFiscalId.toLowerCase() == 'null')
+        ? null
+        : rawFiscalId;
+
     List<UserTransactionItem> itemsList = [];
     if (json['items'] is List) {
       itemsList = (json['items'] as List)
@@ -219,6 +358,7 @@ class UserTransaction {
       transactionAt: json['transactionAt'] != null
           ? DateTime.tryParse(json['transactionAt'].toString())
           : null,
+      fiscalId: cleanFiscalId,
       notes: json['notes']?.toString(),
       fileId: json['fileId']?.toString(),
       fileName: json['fileName']?.toString(),
@@ -248,6 +388,7 @@ class UserTransaction {
       'netBonusAmount': netBonusAmount,
       'bonusAmount': bonusAmount,
       'transactionAt': transactionAt?.toIso8601String(),
+      'fiscalId': fiscalId,
       'notes': notes,
       'fileId': fileId,
       'fileName': fileName,
@@ -346,17 +487,16 @@ class UserTransaction {
 
   /// UI Transaction modelinə çevirmək üçün köməkçi metod
   Transaction toTransaction() {
+    final typeLabel = displayTransactionType;
     final title = partnerName.trim().isNotEmpty
         ? partnerName.trim()
-        : (transactionTypeName?.trim().isNotEmpty == true
-            ? transactionTypeName!.trim()
-            : 'Əməliyyat');
+        : typeLabel;
 
-    final subtitle = transactionTypeName?.trim().isNotEmpty == true
-        ? transactionTypeName!.trim()
+    final subtitle = typeLabel.isNotEmpty
+        ? typeLabel
         : (statusName?.trim().isNotEmpty == true
             ? statusName!.trim()
-            : 'Alış-veriş');
+            : tr('history_type_purchase'));
 
     // 1. Net olan HƏMİŞƏ YUXARIDA yazılır (netAmount > 0 və ya grossAmount > 0 və ya spentBonusAmount > 0):
     final hasSpend = netAmount > 0 || grossAmount > 0 || spentBonusAmount > 0;

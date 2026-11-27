@@ -7,6 +7,7 @@ import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/chat/chat_topics_screen.dart';
 import 'package:loyallig_flutter/features/history/models/user_transaction.dart';
 import 'package:loyallig_flutter/features/history/services/transaction_service.dart';
+import 'package:loyallig_flutter/features/history/widgets/transaction_receipt_sheet.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   const HistoryDetailScreen({
@@ -27,8 +28,32 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
   bool _loading = true;
   bool _isRefreshing = false;
+  bool _isSharingReceipt = false;
   String? _errorMessage;
   UserTransaction? _transaction;
+  final GlobalKey _shareButtonKey = GlobalKey();
+
+  Future<void> _handleShareReceipt(UserTransaction t) async {
+    if (_isSharingReceipt) return;
+    setState(() => _isSharingReceipt = true);
+    try {
+      Rect? origin;
+      final box =
+          _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        origin = box.localToGlobal(Offset.zero) & box.size;
+      }
+      await TransactionReceiptSheet.shareReceipt(
+        context,
+        transaction: t,
+        shareOrigin: origin,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSharingReceipt = false);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -88,25 +113,16 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     }
   }
 
-  IconData _getCategoryIcon(String? type) {
-    if (type == null) return Icons.shopping_bag_outlined;
-    final lower = type.toLowerCase();
-    if (lower.contains('alış') || lower.contains('purchase')) {
-      return Icons.shopping_cart_outlined;
-    }
-    if (lower.contains('qazan') || lower.contains('bonus') || lower.contains('earn')) {
-      return Icons.card_giftcard_rounded;
-    }
-    if (lower.contains('redemption') || lower.contains('istifadə')) {
-      return Icons.toll_rounded;
-    }
-    if (lower.contains('cüzdan') || lower.contains('wallet')) {
-      return Icons.account_balance_wallet_outlined;
-    }
-    if (lower.contains('endirim') || lower.contains('discount')) {
-      return Icons.local_offer_outlined;
-    }
-    return Icons.storefront_rounded;
+  IconData _getCategoryIcon(UserTransaction t) {
+    return switch (t.resolvedTransactionKind) {
+      LoyaltyTransactionKind.purchase => Icons.shopping_cart_outlined,
+      LoyaltyTransactionKind.bonusGrant => Icons.card_giftcard_rounded,
+      LoyaltyTransactionKind.bonusRedemption => Icons.toll_rounded,
+      LoyaltyTransactionKind.discountApplied => Icons.local_offer_outlined,
+      LoyaltyTransactionKind.refund => Icons.replay_rounded,
+      LoyaltyTransactionKind.adjustment => Icons.tune_rounded,
+      LoyaltyTransactionKind.unknown => Icons.storefront_rounded,
+    };
   }
 
   Color _getStatusColor(String? status, bool isDark) {
@@ -251,17 +267,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         ? '${ApiEndpoints.baseUrl}${ApiEndpoints.fileDownload(t.fileId!.trim())}'
         : null;
 
+    final categoryDisplay = t.displayTransactionType;
+
     final partnerDisplay = t.partnerName.trim().isNotEmpty
         ? t.partnerName.trim()
-        : (t.transactionTypeName?.trim().isNotEmpty == true
-            ? t.transactionTypeName!.trim()
+        : (categoryDisplay.isNotEmpty
+            ? categoryDisplay
             : tr('partner_default_name'));
-
-    final categoryDisplay = t.transactionTypeName?.trim().isNotEmpty == true
-        ? t.transactionTypeName!.trim()
-        : (t.transactionType?.trim().isNotEmpty == true
-            ? t.transactionType!.trim()
-            : tr('history_purchase'));
 
     final statusDisplay = t.statusName?.trim().isNotEmpty == true
         ? t.statusName!.trim()
@@ -269,7 +281,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
     final statusColor = _getStatusColor(statusDisplay, isDark);
     final statusIcon = _getStatusIcon(statusDisplay);
-    final categoryIcon = _getCategoryIcon(categoryDisplay);
+    final categoryIcon = _getCategoryIcon(t);
 
     return SwipeBackWrapper(
       child: Scaffold(
@@ -645,6 +657,25 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                                 );
                               },
                             ),
+                            if (t.hasFiscalId)
+                              _InfoRow(
+                                label: tr('receipt_fiscal_id'),
+                                value: t.fiscalId!,
+                                textColor: textColor,
+                                labelColor: secondaryTextColor,
+                                icon: Icons.copy_rounded,
+                                onIconTap: () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: t.fiscalId!),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(tr('receipt_fiscal_copied')),
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                },
+                              ),
                             _InfoRow(
                               label: tr('history_date_time'),
                               value: t.fullFormattedDate,
@@ -1005,12 +1036,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${tr('history_receipt')}: #${t.externalReference?.isNotEmpty == true ? t.externalReference! : t.id}',
-                                    ),
-                                  ),
+                                TransactionReceiptSheet.show(
+                                  context,
+                                  transaction: t,
                                 );
                               },
                               child: Container(
@@ -1024,7 +1052,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      Icons.download_rounded,
+                                      Icons.receipt_long_rounded,
                                       size: 20,
                                       color: textColor,
                                     ),
@@ -1045,17 +1073,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: InkWell(
+                              key: _shareButtonKey,
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () {
-                                final text =
-                                    'Loyallig: $partnerDisplay - $topAmount (${t.fullFormattedDate})';
-                                Clipboard.setData(ClipboardData(text: text));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(tr('history_copied_info')),
-                                  ),
-                                );
-                              },
+                              onTap: _isSharingReceipt
+                                  ? null
+                                  : () => _handleShareReceipt(t),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
@@ -1066,11 +1088,21 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.share_outlined,
-                                      size: 20,
-                                      color: textColor,
-                                    ),
+                                    if (_isSharingReceipt)
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: textColor,
+                                        ),
+                                      )
+                                    else
+                                      Icon(
+                                        Icons.share_outlined,
+                                        size: 20,
+                                        color: textColor,
+                                      ),
                                     const SizedBox(width: 8),
                                     Text(
                                       tr('history_share'),

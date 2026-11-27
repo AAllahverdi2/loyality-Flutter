@@ -7,6 +7,7 @@ import 'package:loyallig_flutter/core/routes/smooth_page_route.dart';
 import 'package:loyallig_flutter/features/notifications/models/notification_item.dart';
 import 'package:loyallig_flutter/features/notifications/notifications_screen.dart';
 import 'package:loyallig_flutter/features/notifications/services/notifications_store.dart';
+import 'package:loyallig_flutter/features/notifications/services/push_notification_service.dart';
 import 'package:loyallig_flutter/main.dart';
 
 class InAppNotificationOverlay extends StatefulWidget {
@@ -60,6 +61,7 @@ class _InAppNotificationOverlayState extends State<InAppNotificationOverlay>
   void _showToast(AppNotification notification) {
     if (!mounted) return;
     _dismissTimer?.cancel();
+    unawaited(PushNotificationService.instance.playInAppNotificationSound());
     setState(() {
       _activeNotification = notification;
     });

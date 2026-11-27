@@ -1,3 +1,4 @@
+import AudioToolbox
 import Flutter
 import UIKit
 import UserNotifications
@@ -46,8 +47,17 @@ import UserNotifications
     case "setBadgeCount":
       let count = (call.arguments as? [String: Any])?["count"] as? Int ?? 0
       setAppBadgeCount(count, result: result)
+    case "playNotificationSound":
+      playDefaultNotificationSound(result: result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func playDefaultNotificationSound(result: @escaping FlutterResult) {
+    DispatchQueue.main.async {
+      AudioServicesPlaySystemSound(1007)
+      result(true)
     }
   }
 

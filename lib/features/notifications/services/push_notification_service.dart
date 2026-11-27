@@ -194,6 +194,15 @@ class PushNotificationService {
     }
   }
 
+  Future<void> playInAppNotificationSound() async {
+    if (!_isMobilePlatform) return;
+    if (!NotificationsStore.instance.isNotificationsEnabled) return;
+    try {
+      await HapticFeedback.lightImpact();
+      await _platformChannel.invokeMethod<bool>('playNotificationSound');
+    } catch (_) {}
+  }
+
   Future<void> _initFirebaseMessaging() async {
     try {
       if (Firebase.apps.isEmpty) {
