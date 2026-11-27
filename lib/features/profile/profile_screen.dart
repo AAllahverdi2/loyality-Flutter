@@ -239,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () {
                       Navigator.of(context).push(
                         SmoothPageRoute<void>(
-                          builder: (_) => const SecurityScreen(),
+                          builder: (_) => SecurityScreen(profile: _profile),
                         ),
                       ).then((_) => _loadProfile());
                     },

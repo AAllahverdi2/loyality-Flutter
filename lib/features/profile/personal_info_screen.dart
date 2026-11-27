@@ -40,6 +40,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   String? _avatarFileId;
   Uint8List? _avatarLocalBytes;
   bool _uploadingAvatar = false;
+  UserProfile? _profile;
+
+  bool get _canChangeEmail => _profile?.canChangeEmail ?? false;
 
   String _formatDateForDisplay(String? date) {
     if (date == null || date.trim().isEmpty) return '';
@@ -106,7 +109,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   @override
   void initState() {
     super.initState();
-    final p = widget.profile;
+    _profile = widget.profile ?? ProfileService.cachedProfile;
+    final p = _profile;
     _nameController = TextEditingController(text: p?.firstName ?? '');
     _surnameController = TextEditingController(text: p?.lastName ?? '');
     _phoneController = TextEditingController(text: p?.phoneNumber ?? '');
@@ -130,6 +134,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       final p = await _profileService.getMyProfile();
       if (mounted && p != null) {
         setState(() {
+          _profile = p;
           _nameController.text = p.firstName ?? '';
           _surnameController.text = p.lastName ?? '';
           _phoneController.text = p.phoneNumber ?? '';
@@ -211,6 +216,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   }
 
   Future<void> _openChangeEmailScreen() async {
+    if (!_canChangeEmail) return;
     final newEmail = await ChangeEmailScreen.confirmAndOpen(
       context,
       currentEmail: _emailController.text.trim(),
@@ -721,7 +727,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       marginBottom: 16,
                     ),
 
-                    // Email + "Emaili dəyiş" düyməsi
+                    // Email + "Emaili dəyiş" düyməsi (sosial provayderlərdə gizlədilir)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -736,44 +742,45 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                                 color: textColor,
                               ),
                             ),
-                            GestureDetector(
-                              onTap: _openChangeEmailScreen,
-                              behavior: HitTestBehavior.opaque,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.base.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.edit_outlined,
-                                      size: 14,
-                                      color: AppColors.base,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      tr('change_email_button'),
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
+                            if (_canChangeEmail)
+                              GestureDetector(
+                                onTap: _openChangeEmailScreen,
+                                behavior: HitTestBehavior.opaque,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.base.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.edit_outlined,
+                                        size: 14,
                                         color: AppColors.base,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        tr('change_email_button'),
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.base,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         GestureDetector(
-                          onTap: _openChangeEmailScreen,
+                          onTap: _canChangeEmail ? _openChangeEmailScreen : null,
                           behavior: HitTestBehavior.opaque,
                           child: Container(
                             height: 50,
@@ -807,12 +814,14 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
-                                const Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 20,
-                                  color: AppColors.secondaryText,
-                                ),
+                                if (_canChangeEmail) ...[
+                                  const SizedBox(width: 10),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                    color: AppColors.secondaryText,
+                                  ),
+                                ],
                               ],
                             ),
                           ),

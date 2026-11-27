@@ -44,7 +44,7 @@ class UserProfile {
       phoneNumber: json['phoneNumber'] as String?,
       barcode: json['barcode'] as String?,
       isPremium: json['isPremium'] as bool? ?? false,
-      authProvider: json['authProvider'] as String?,
+      authProvider: json['authProvider']?.toString(),
       lastLoginAt: json['lastLoginAt'] != null
           ? DateTime.tryParse(json['lastLoginAt'].toString())
           : null,
@@ -81,6 +81,16 @@ class UserProfile {
       'hasPinCode': hasPinCode,
     };
   }
+
+  /// Sosial provayderlə (Google/Apple) daxil olub-olmadığını bildirir.
+  bool get isSocialAuth {
+    final provider = authProvider?.trim().toLowerCase();
+    return provider == 'google' || provider == 'apple';
+  }
+
+  bool get canChangePassword => !isSocialAuth;
+
+  bool get canChangeEmail => !isSocialAuth;
 
   String get displayName {
     if (fullName != null && fullName!.trim().isNotEmpty) {
