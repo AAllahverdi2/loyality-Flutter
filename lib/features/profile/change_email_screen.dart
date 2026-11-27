@@ -29,6 +29,8 @@ class ChangeEmailScreen extends StatefulWidget {
     BuildContext context, {
     String? currentEmail,
   }) async {
+    if (ProfileService.cachedProfile?.isSocialAuth == true) return null;
+
     final effectiveEmail =
         (currentEmail ?? ProfileService.cachedProfile?.email ?? '').trim();
 

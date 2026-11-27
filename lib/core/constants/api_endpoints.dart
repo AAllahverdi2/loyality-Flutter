@@ -1,6 +1,6 @@
 class ApiEndpoints {
-  // static const String baseUrl = 'http://192.168.100.173';
-  static const String baseUrl = 'https://apiloyalty.azeraholding.az';
+  static const String baseUrl = 'http://192.168.100.173';
+  // static const String baseUrl = 'https://apiloyalty.azeraholding.az';
   // static const String baseUrl = 'http://192.168.141.2';
 
   static const Duration connectTimeout = Duration(seconds: 15);

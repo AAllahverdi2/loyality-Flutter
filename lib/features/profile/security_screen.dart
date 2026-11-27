@@ -6,15 +6,54 @@ import 'package:loyallig_flutter/core/widgets/swipe_back_wrapper.dart';
 import 'package:loyallig_flutter/features/profile/biometric_settings_screen.dart';
 import 'package:loyallig_flutter/features/profile/change_email_screen.dart';
 import 'package:loyallig_flutter/features/profile/change_password_screen.dart';
+import 'package:loyallig_flutter/features/profile/models/user_profile.dart';
 import 'package:loyallig_flutter/features/profile/pin_code_settings_screen.dart';
+import 'package:loyallig_flutter/features/profile/services/profile_service.dart';
 
-class SecurityScreen extends StatelessWidget {
+class SecurityScreen extends StatefulWidget {
   final int? initialIndex;
+  final UserProfile? profile;
 
   const SecurityScreen({
     super.key,
     this.initialIndex,
+    this.profile,
   });
+
+  @override
+  State<SecurityScreen> createState() => _SecurityScreenState();
+}
+
+class _SecurityScreenState extends State<SecurityScreen> {
+  final ProfileService _profileService = ProfileService();
+  UserProfile? _profile;
+  bool _loadingProfile = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _profile = widget.profile ?? ProfileService.cachedProfile;
+    if (_profile == null) {
+      _loadingProfile = true;
+      _loadProfile();
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final loaded = await _profileService.getMyProfile();
+      if (!mounted) return;
+      setState(() {
+        _profile = loaded;
+        _loadingProfile = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingProfile = false;
+      });
+    }
+  }
 
   void _navigateToBiometric(BuildContext context) {
     Navigator.of(context).push(
@@ -193,124 +232,131 @@ class SecurityScreen extends StatelessWidget {
               ),
             ),
 
-            // Body: Centered vertically with 3 stacked options
+            // Body: Centered vertically with available security options
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Top Visual Icon Badge
-                      Center(
-                        child: Container(
-                          width: 86,
-                          height: 86,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF27272A)
-                                : const Color(0xFFFEE2E2),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.base.withValues(alpha: 0.3),
-                              width: 2,
+              child: _loadingProfile
+                  ? const Center(child: CircularProgressIndicator())
+                  : Center(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 20,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Top Visual Icon Badge
+                            Center(
+                              child: Container(
+                                width: 86,
+                                height: 86,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF27272A)
+                                      : const Color(0xFFFEE2E2),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.base.withValues(alpha: 0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.shield_outlined,
+                                  size: 44,
+                                  color: AppColors.base,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: const Icon(
-                            Icons.shield_outlined,
-                            size: 44,
-                            color: AppColors.base,
-                          ),
+                            const SizedBox(height: 18),
+                            Center(
+                              child: Text(
+                                tr('security_title'),
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Center(
+                              child: Text(
+                                tr('security_header_desc'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: secondaryTextColor,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 36),
+
+                            // Option 1: Biometrik təhlükəsizlik
+                            _buildSecurityOptionCard(
+                              context: context,
+                              icon: Icons.fingerprint_rounded,
+                              title: tr('security_tab_biometric'),
+                              subtitle: tr('security_biometric_subtitle'),
+                              onTap: () => _navigateToBiometric(context),
+                              isDark: isDark,
+                              cardBg: cardBg,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              secondaryTextColor: secondaryTextColor,
+                            ),
+
+                            // Option 2: Şifrəni dəyişdir (Google/Apple üçün gizlədilir)
+                            if (_profile?.canChangePassword == true)
+                              _buildSecurityOptionCard(
+                                context: context,
+                                icon: Icons.lock_reset_rounded,
+                                title: tr('security_tab_change_password'),
+                                subtitle:
+                                    tr('security_change_password_subtitle'),
+                                onTap: () => _navigateToChangePassword(context),
+                                isDark: isDark,
+                                cardBg: cardBg,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                secondaryTextColor: secondaryTextColor,
+                              ),
+
+                            // Option 3: E-poçt ünvanını dəyişdir (Google/Apple üçün gizlədilir)
+                            if (_profile?.canChangeEmail == true)
+                              _buildSecurityOptionCard(
+                                context: context,
+                                icon: Icons.alternate_email_rounded,
+                                title: tr('change_email_title'),
+                                subtitle: tr('change_email_security_subtitle'),
+                                onTap: () => _navigateToChangeEmail(context),
+                                isDark: isDark,
+                                cardBg: cardBg,
+                                borderColor: borderColor,
+                                textColor: textColor,
+                                secondaryTextColor: secondaryTextColor,
+                              ),
+
+                            // Option 4: PIN kod təyin et
+                            _buildSecurityOptionCard(
+                              context: context,
+                              icon: Icons.dialpad_rounded,
+                              title: tr('security_tab_set_pin'),
+                              subtitle: tr('security_pin_code_subtitle'),
+                              onTap: () => _navigateToPinCode(context),
+                              isDark: isDark,
+                              cardBg: cardBg,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              secondaryTextColor: secondaryTextColor,
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      Center(
-                        child: Text(
-                          tr('security_title'),
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Center(
-                        child: Text(
-                          tr('security_header_desc'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: secondaryTextColor,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 36),
-
-                      // Option 1: Biometrik təhlükəsizlik
-                      _buildSecurityOptionCard(
-                        context: context,
-                        icon: Icons.fingerprint_rounded,
-                        title: tr('security_tab_biometric'),
-                        subtitle: tr('security_biometric_subtitle'),
-                        onTap: () => _navigateToBiometric(context),
-                        isDark: isDark,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        secondaryTextColor: secondaryTextColor,
-                      ),
-
-                      // Option 2: Şifrəni dəyişdir
-                      _buildSecurityOptionCard(
-                        context: context,
-                        icon: Icons.lock_reset_rounded,
-                        title: tr('security_tab_change_password'),
-                        subtitle: tr('security_change_password_subtitle'),
-                        onTap: () => _navigateToChangePassword(context),
-                        isDark: isDark,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        secondaryTextColor: secondaryTextColor,
-                      ),
-
-                      // Option 3: E-poçt ünvanını dəyişdir
-                      _buildSecurityOptionCard(
-                        context: context,
-                        icon: Icons.alternate_email_rounded,
-                        title: tr('change_email_title'),
-                        subtitle: tr('change_email_security_subtitle'),
-                        onTap: () => _navigateToChangeEmail(context),
-                        isDark: isDark,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        secondaryTextColor: secondaryTextColor,
-                      ),
-
-                      // Option 4: PIN kod təyin et
-                      _buildSecurityOptionCard(
-                        context: context,
-                        icon: Icons.dialpad_rounded,
-                        title: tr('security_tab_set_pin'),
-                        subtitle: tr('security_pin_code_subtitle'),
-                        onTap: () => _navigateToPinCode(context),
-                        isDark: isDark,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                        secondaryTextColor: secondaryTextColor,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
             ),
           ],
         ),
