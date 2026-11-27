@@ -6,7 +6,7 @@
 class GoogleAuthConfig {
   /// [VACİB] Backend / Google Cloud Console tərəfindən verilən "Web Client ID":
   static const String webClientId =
-      '642188098259-91mrb7212dme9ukd50h9e5rsrsa5em7e.apps.googleusercontent.com';
+      '64040398606-ajafqaibi0vvbd38d649kvecb9hn42bi.apps.googleusercontent.com';
 
   /// Client ID-ni təmizlənmiş şəkildə qaytarır (əgər https:// və ya son slash əlavə olunubsa onları təmizləyir)
   static String get cleanWebClientId {
@@ -24,5 +24,5 @@ class GoogleAuthConfig {
 
   /// iOS üçün xüsusi Client ID:
   static const String iosClientId =
-      '642188098259-3me4972c2bmq0r4nl9d6vk142i06pie8.apps.googleusercontent.com';
+      '64040398606-nbai3eq756196or5pe8138lqvmcgt6r4.apps.googleusercontent.com';
 }

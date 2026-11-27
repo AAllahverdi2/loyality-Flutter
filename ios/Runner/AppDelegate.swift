@@ -1,3 +1,4 @@
+import AudioToolbox
 import Flutter
 import UIKit
 import UserNotifications
@@ -43,8 +44,36 @@ import UserNotifications
       requestNotificationPermission(result: result)
     case "openNotificationSettings":
       openAppNotificationSettings(result: result)
+    case "setBadgeCount":
+      let count = (call.arguments as? [String: Any])?["count"] as? Int ?? 0
+      setAppBadgeCount(count, result: result)
+    case "playNotificationSound":
+      playDefaultNotificationSound(result: result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func playDefaultNotificationSound(result: @escaping FlutterResult) {
+    DispatchQueue.main.async {
+      AudioServicesPlaySystemSound(1007)
+      result(true)
+    }
+  }
+
+  private func setAppBadgeCount(_ count: Int, result: @escaping FlutterResult) {
+    let safeCount = count < 0 ? 0 : count
+    DispatchQueue.main.async {
+      if #available(iOS 16.0, *) {
+        UNUserNotificationCenter.current().setBadgeCount(safeCount) { error in
+          DispatchQueue.main.async {
+            result(error == nil)
+          }
+        }
+      } else {
+        UIApplication.shared.applicationIconBadgeNumber = safeCount
+        result(true)
+      }
     }
   }
 

@@ -4,14 +4,17 @@ import 'package:loyallig_flutter/core/constants/google_auth_config.dart';
 
 class GoogleAuthService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  static bool _initialized = false;
+  static Future<void>? _initFuture;
 
-  /// Plugin-i konfiqurasiya edir (Web Client ID təyin olunur).
-  static Future<void> _ensureInitialized() async {
-    if (_initialized) return;
+  /// Plugin-i platformaya uyğun konfiqurasiya edir.
+  static Future<void> _ensureInitialized() {
+    return _initFuture ??= _initializeInternal();
+  }
 
+  static Future<void> _initializeInternal() async {
     final String serverClientId = GoogleAuthConfig.cleanWebClientId;
     if (serverClientId.isEmpty) {
+      _initFuture = null;
       throw Exception(
         'Google ilə daxil olmaq üçün Web Client ID qeyd edilməlidir. '
         'Zəhmət olmasa "lib/core/constants/google_auth_config.dart" faylındakı '
@@ -19,15 +22,29 @@ class GoogleAuthService {
       );
     }
 
-    final String? clientId = GoogleAuthConfig.iosClientId.trim().isNotEmpty
-        ? GoogleAuthConfig.iosClientId.trim()
-        : null;
+    try {
+      if (kIsWeb) {
+        await _googleSignIn.initialize(clientId: serverClientId);
+        return;
+      }
 
-    await _googleSignIn.initialize(
-      serverClientId: serverClientId,
-      clientId: clientId,
-    );
-    _initialized = true;
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _googleSignIn.initialize(serverClientId: serverClientId);
+        return;
+      }
+
+      final String? iosClientId = GoogleAuthConfig.iosClientId.trim().isNotEmpty
+          ? GoogleAuthConfig.iosClientId.trim()
+          : null;
+
+      await _googleSignIn.initialize(
+        serverClientId: serverClientId,
+        clientId: iosClientId,
+      );
+    } catch (_) {
+      _initFuture = null;
+      rethrow;
+    }
   }
 
   /// Google hesab seçicisini açır və dinamik idToken əldə edir.
@@ -35,6 +52,12 @@ class GoogleAuthService {
   static Future<String?> signInAndGetIdToken() async {
     try {
       await _ensureInitialized();
+
+      if (kIsWeb || !_googleSignIn.supportsAuthenticate()) {
+        throw Exception(
+          'Google ilə giriş yalnız Android və iOS mobil tətbiqində dəstəklənir.',
+        );
+      }
 
       // İstifadəçiyə yenidən hesab seçmə şansı vermək üçün əvvəlki yerli sessiyanı təmizləyirik
       try {

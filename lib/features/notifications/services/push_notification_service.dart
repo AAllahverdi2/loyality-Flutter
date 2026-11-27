@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loyallig_flutter/core/network/api_client.dart';
@@ -25,16 +26,19 @@ const String _androidChannelId = 'azera_notifications';
 const String _androidChannelName = 'Azera Bildirişlər';
 const String _androidChannelDesc = 'Bildirişlər və dəstək mesajları';
 
-const AndroidNotificationDetails _defaultAndroidDetails =
-    AndroidNotificationDetails(
-      _androidChannelId,
-      _androidChannelName,
-      channelDescription: _androidChannelDesc,
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    );
+AndroidNotificationDetails _buildAndroidDetails({int? badgeNumber}) {
+  return AndroidNotificationDetails(
+    _androidChannelId,
+    _androidChannelName,
+    channelDescription: _androidChannelDesc,
+    importance: Importance.max,
+    priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    channelShowBadge: true,
+    number: (badgeNumber != null && badgeNumber > 0) ? badgeNumber : null,
+  );
+}
 
 Future<void> _ensureAndroidNotificationChannel(
   FlutterLocalNotificationsPlugin plugin,
@@ -90,12 +94,16 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             message.messageId ??
             message.data['notificationId']?.toString() ??
             DateTime.now().millisecondsSinceEpoch.toString();
+        final parsedBadge = int.tryParse(
+          (message.data['unreadCount'] ?? message.data['badge'])?.toString() ??
+              '',
+        );
         await plugin.show(
           id: idSource.hashCode & 0x7fffffff,
           title: title.isNotEmpty ? title : 'Azera Loyallıq',
           body: body,
-          notificationDetails: const NotificationDetails(
-            android: _defaultAndroidDetails,
+          notificationDetails: NotificationDetails(
+            android: _buildAndroidDetails(badgeNumber: parsedBadge),
           ),
           payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
         );
@@ -115,6 +123,9 @@ class PushNotificationService {
       PushNotificationService._internal();
 
   static const String androidChannelId = _androidChannelId;
+  static const MethodChannel _platformChannel = MethodChannel(
+    'com.example.loyallig_flutter/notification_permissions',
+  );
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -125,17 +136,71 @@ class PushNotificationService {
   bool _localReady = false;
   String? _lastSyncedToken;
   bool? _lastSyncedPreference;
+  int? _lastAppliedBadgeCount;
   Map<String, dynamic>? _pendingLaunchData;
 
   bool get _isMobilePlatform =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
+  int get currentBadgeCount =>
+      (NotificationsStore.instance.unreadCount +
+              SupportConversationsStore.instance.totalUnreadCount)
+          .clamp(0, 999999);
+
   Future<void> init() async {
     if (_initialized || !_isMobilePlatform) return;
     _initialized = true;
 
+    NotificationsStore.instance.addListener(_onUnreadStoresChanged);
+    SupportConversationsStore.instance.addListener(_onUnreadStoresChanged);
+
     await _initFirebaseMessaging();
     await _initLocalNotifications();
+  }
+
+  void _onUnreadStoresChanged() {
+    unawaited(syncAppBadgeCount());
+  }
+
+  Future<void> syncAppBadgeCount() async {
+    await updateAppBadge(currentBadgeCount);
+  }
+
+  Future<void> updateAppBadge(int count) async {
+    if (!_isMobilePlatform) return;
+    final safeCount = count < 0 ? 0 : count;
+    if (_lastAppliedBadgeCount == safeCount) return;
+    _lastAppliedBadgeCount = safeCount;
+
+    if (Platform.isIOS) {
+      try {
+        await _platformChannel.invokeMethod<bool>('setBadgeCount', {
+          'count': safeCount,
+        });
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ [PUSH] iOS badge yeniləmə xətası: $e');
+        }
+      }
+      return;
+    }
+
+    // Android-də oxunmamış say sıfırlandıqda (və ya çıxışda)
+    // bildiriş panelindəki köhnə bildirişləri və launcher badge-ni təmizləyirik.
+    if (Platform.isAndroid && safeCount == 0 && _localReady) {
+      try {
+        await _localNotifications.cancelAll();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> playInAppNotificationSound() async {
+    if (!_isMobilePlatform) return;
+    if (!NotificationsStore.instance.isNotificationsEnabled) return;
+    try {
+      await HapticFeedback.lightImpact();
+      await _platformChannel.invokeMethod<bool>('playNotificationSound');
+    } catch (_) {}
   }
 
   Future<void> _initFirebaseMessaging() async {
@@ -360,6 +425,8 @@ class PushNotificationService {
   void resetSessionCache() {
     _lastSyncedToken = null;
     _lastSyncedPreference = null;
+    _lastAppliedBadgeCount = null;
+    unawaited(updateAppBadge(0));
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
@@ -416,18 +483,24 @@ class PushNotificationService {
         message.data['notificationId']?.toString() ??
         DateTime.now().millisecondsSinceEpoch.toString();
     final id = idSource.hashCode & 0x7fffffff;
+    final parsedBadge = int.tryParse(
+      (message.data['unreadCount'] ?? message.data['badge'])?.toString() ?? '',
+    );
+    final effectiveBadge = parsedBadge ??
+        (currentBadgeCount > 0 ? currentBadgeCount : 1);
 
     await _localNotifications.show(
       id: id,
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
-        android: _defaultAndroidDetails,
+      notificationDetails: NotificationDetails(
+        android: _buildAndroidDetails(badgeNumber: effectiveBadge),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBanner: true,
           presentSound: true,
           presentBadge: true,
+          badgeNumber: effectiveBadge,
         ),
       ),
       payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,

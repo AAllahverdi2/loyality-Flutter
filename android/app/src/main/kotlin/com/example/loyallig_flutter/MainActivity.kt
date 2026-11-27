@@ -1,7 +1,11 @@
 package com.example.loyallig_flutter
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -30,6 +34,7 @@ class MainActivity : FlutterFragmentActivity() {
                     "checkStatus" -> result.success(buildPermissionState())
                     "requestPermission" -> handleRequestPermission(result)
                     "openNotificationSettings" -> openAppNotificationSettings(result)
+                    "playNotificationSound" -> playDefaultNotificationSound(result)
                     else -> result.notImplemented()
                 }
             }
@@ -125,6 +130,33 @@ class MainActivity : FlutterFragmentActivity() {
             } catch (_: Exception) {
                 result.success(false)
             }
+        }
+    }
+
+    private fun playDefaultNotificationSound(result: MethodChannel.Result) {
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            if (audioManager != null && audioManager.ringerMode != AudioManager.RINGER_MODE_NORMAL) {
+                result.success(false)
+                return
+            }
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val ringtone = if (uri != null) RingtoneManager.getRingtone(applicationContext, uri) else null
+            if (ringtone == null) {
+                result.success(false)
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                ringtone.audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            }
+            ringtone.play()
+            result.success(true)
+        } catch (_: Exception) {
+            result.success(false)
         }
     }
 }

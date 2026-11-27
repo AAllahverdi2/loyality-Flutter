@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:loyallig_flutter/core/constants/api_endpoints.dart';
 import 'package:loyallig_flutter/core/localization/app_localizations.dart';
 
 enum AppNotificationType { personal, broadcast }
@@ -12,6 +13,7 @@ class AppNotification {
     required this.type,
     this.targetUserId,
     this.payloadJson,
+    this.imageFileId,
     this.createdAt,
     this.isRead = false,
   });
@@ -22,8 +24,17 @@ class AppNotification {
   final AppNotificationType type;
   final String? targetUserId;
   final String? payloadJson;
+  final String? imageFileId;
   final DateTime? createdAt;
   final bool isRead;
+
+  String? get imageUrl {
+    final id = imageFileId?.trim();
+    if (id == null || id.isEmpty || id.toLowerCase() == 'null') {
+      return null;
+    }
+    return '${ApiEndpoints.baseUrl}${ApiEndpoints.fileDownload(id)}';
+  }
 
   bool get isPersonal => type == AppNotificationType.personal;
 
@@ -147,6 +158,19 @@ class AppNotification {
         ? rawIsRead != 0
         : (isReadText == 'true' || isReadText == '1');
 
+    final rawImageId = _readField(lowerJson, const [
+      'imagefileid',
+      'fileid',
+      'attachid',
+      'imageid',
+    ])?.toString().trim();
+    final normalizedImageId =
+        (rawImageId == null ||
+            rawImageId.isEmpty ||
+            rawImageId.toLowerCase() == 'null')
+        ? null
+        : rawImageId;
+
     return AppNotification(
       id: (_readField(lowerJson, const ['id', 'notificationid']) ?? '')
           .toString()
@@ -170,6 +194,7 @@ class AppNotification {
         'userid',
       ])?.toString().trim(),
       payloadJson: normalizedPayloadJson,
+      imageFileId: normalizedImageId,
       createdAt: parsedCreatedAt,
       isRead: parsedIsRead,
     );
@@ -182,6 +207,7 @@ class AppNotification {
     AppNotificationType? type,
     String? targetUserId,
     String? payloadJson,
+    String? imageFileId,
     DateTime? createdAt,
     bool? isRead,
   }) {
@@ -192,6 +218,7 @@ class AppNotification {
       type: type ?? this.type,
       targetUserId: targetUserId ?? this.targetUserId,
       payloadJson: payloadJson ?? this.payloadJson,
+      imageFileId: imageFileId ?? this.imageFileId,
       createdAt: createdAt ?? this.createdAt,
       isRead: isRead ?? this.isRead,
     );
