@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:loyallig_flutter/core/constants/google_auth_config.dart';
@@ -64,6 +66,12 @@ class GoogleAuthService {
         await _googleSignIn.signOut();
       } catch (_) {}
 
+      if (kDebugMode) {
+        debugPrint(
+          '🔵 [GOOGLE SIGN IN]: authenticate() başlayır (platform=${defaultTargetPlatform.name}, serverClientId=${GoogleAuthConfig.cleanWebClientId})',
+        );
+      }
+
       final GoogleSignInAccount account = await _googleSignIn.authenticate();
       final GoogleSignInAuthentication auth = account.authentication;
       final String? idToken = auth.idToken;
@@ -74,6 +82,10 @@ class GoogleAuthService {
         throw Exception(
           'Google idToken alına bilmədi. Zəhmət olmasa GoogleAuthConfig.webClientId konfiqurasiyasını yoxlayın.',
         );
+      }
+
+      if (kDebugMode) {
+        _logIdTokenClaims(idToken);
       }
 
       return idToken;
@@ -103,5 +115,24 @@ class GoogleAuthService {
       await _ensureInitialized();
       await _googleSignIn.signOut();
     } catch (_) {}
+  }
+
+  static void _logIdTokenClaims(String idToken) {
+    try {
+      final parts = idToken.split('.');
+      if (parts.length < 2) {
+        debugPrint('🟢 [GOOGLE SIGN IN]: idToken alındı (len=${idToken.length})');
+        return;
+      }
+      final payloadJson = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final claims = jsonDecode(payloadJson) as Map<String, dynamic>;
+      debugPrint(
+        '🟢 [GOOGLE SIGN IN]: idToken alındı (len=${idToken.length}, aud=${claims['aud']}, azp=${claims['azp']}, iss=${claims['iss']})',
+      );
+    } catch (_) {
+      debugPrint('🟢 [GOOGLE SIGN IN]: idToken alındı (len=${idToken.length})');
+    }
   }
 }
